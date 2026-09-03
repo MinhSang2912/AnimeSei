@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+body {
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-100);
+  min-height: 100vh;
+  font-family: inherit;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--color-purple-600);
+  color: #ffffff;
+}
+
+/* Custom Scrollbar for Anime Dark Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}

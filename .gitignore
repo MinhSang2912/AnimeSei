@@ -1,0 +1,60 @@
+# ==========================================
+# 1. SECURITY & SENSITIVE CREDENTIALS (CỰC KỲ QUAN TRỌNG)
+# ==========================================
+src/AnimeSei.API/appsettings.json
+src/AnimeSei.API/appsettings.Development.json
+src/AnimeSei.API/appsettings.Production.json
+appsettings.json
+appsettings.*.json
+!**/appsettings.Example.json
+
+.env
+.env.local
+.env.development
+.env.production
+!.env.example
+
+*.pem
+*.pfx
+*.key
+
+# ==========================================
+# 2. .NET BUILD ARTIFACTS & BINARIES
+# ==========================================
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosv
+*.userprefs
+.vs/
+*.sln.docstates
+
+# ==========================================
+# 3. NODE & REACT DEPENDENCIES & BUILD
+# ==========================================
+**/node_modules/
+**/dist/
+**/build/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================================
+# 4. LOCAL DATABASES & MEDIA UPLOADS
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+**/uploads/
+**/logs/
+*.log
+
+# ==========================================
+# 5. IDE & AI AGENT CONFIGURATIONS
+# ==========================================
+.idea/
+.vscode/
+.agents/
+.gemini/

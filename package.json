@@ -1,0 +1,11 @@
+{
+  "name": "animesei-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm run dev --prefix client",
+    "build": "npm run build --prefix client",
+    "client": "npm run dev --prefix client",
+    "api": "dotnet run --project src/AnimeSei.API/AnimeSei.API.csproj"
+  }
+}
