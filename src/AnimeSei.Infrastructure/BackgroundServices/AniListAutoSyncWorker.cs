@@ -31,17 +31,25 @@ public class AniListAutoSyncWorker : BackgroundService
 
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(30));
 
-        do
+        try
         {
-            try
+            do
             {
-                await _aniListService.SyncIncrementalAnimeAsync(stoppingToken);
+                try
+                {
+                    await _aniListService.SyncIncrementalAnimeAsync(stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogError(ex, "⚠️ Error occurred during background incremental AniList sync.");
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "⚠️ Error occurred during background incremental AniList sync.");
-            }
+            while (await timer.WaitForNextTickAsync(stoppingToken));
         }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("🛑 AniList Auto Sync Worker stopping due to cancellation signal.");
+        }
     }
 }
+

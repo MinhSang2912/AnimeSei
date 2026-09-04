@@ -18,7 +18,22 @@ import type { User } from './types/anime';
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      const savedExpiry = localStorage.getItem('loginExpiryTimestamp');
+      if (savedUser && savedExpiry) {
+        const expiryTimestamp = parseInt(savedExpiry, 10);
+        if (Date.now() < expiryTimestamp) {
+          return JSON.parse(savedUser);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse saved user', e);
+    }
+    return null;
+  });
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Restore & Check 7-day session expiration
@@ -30,20 +45,13 @@ export function App() {
       const expiryTimestamp = parseInt(savedExpiry, 10);
       const now = Date.now();
 
-      if (now < expiryTimestamp) {
-        // Session valid within 7 days
-        try {
-          setUser(JSON.parse(savedUser));
-        } catch (e) {
-          console.error('Failed to parse saved user', e);
-        }
-      } else {
+      if (now >= expiryTimestamp) {
         // Session expired after 7 days -> Auto logout
         handleLogout();
         setIsAuthModalOpen(true);
       }
     } else if (!savedUser) {
-      // Not logged in -> Show Auth Modal automatically
+      // Chưa đăng nhập -> Tự động bật Modal Đăng Nhập khi tải lại trang / truy cập lần đầu
       setIsAuthModalOpen(true);
     }
   }, []);
@@ -54,6 +62,9 @@ export function App() {
 
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('accessToken', userData.accessToken);
+    if (userData.refreshToken) {
+      localStorage.setItem('refreshToken', userData.refreshToken);
+    }
     localStorage.setItem('loginExpiryTimestamp', expiryTimestamp.toString());
   };
 
@@ -61,6 +72,7 @@ export function App() {
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('loginExpiryTimestamp');
   };
 
@@ -71,6 +83,8 @@ export function App() {
       localStorage.setItem('user', JSON.stringify(updated));
     }
   };
+
+  const isAdmin = user && user.role && user.role.toLowerCase() === 'admin';
 
   return (
     <BrowserRouter>
@@ -99,7 +113,16 @@ export function App() {
             <Route path="/watch/:id" element={<WatchPage user={user} onUpdatePoints={handleUpdatePoints} />} />
             <Route path="/shop" element={<PointShopPage user={user} onUpdatePoints={handleUpdatePoints} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route
+              path="/admin"
+              element={
+                isAdmin ? (
+                  <AdminPage />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
             <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
             <Route path="/register" element={<RegisterPage onLoginSuccess={handleLoginSuccess} />} />
             <Route path="*" element={<Navigate to="/" replace />} />

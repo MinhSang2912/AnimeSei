@@ -16,7 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? builder.Configuration["ConnectionStrings:DefaultConnection"];
 
-if (!string.IsNullOrEmpty(connectionString) && !connectionString.Contains("YOUR_SUPABASE_ID") && builder.Configuration["UsePostgres"] == "true")
+if (!string.IsNullOrEmpty(connectionString) && builder.Configuration["UsePostgres"] == "true")
 {
     builder.Services.AddDbContext<AnimeSeiDbContext>(options =>
         options.UseNpgsql(connectionString));

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Film, Search, LogOut, Award, ShoppingBag, X } from 'lucide-react';
+import { Film, Search, LogOut, Award, ShoppingBag, X, Shield } from 'lucide-react';
 
 interface NavbarProps {
   user: any;
@@ -71,6 +71,16 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenAuthModal 
 
         {/* User / Auth actions */}
         <div className="flex items-center space-x-4">
+          {user && user.role && user.role.toLowerCase() === 'admin' && (
+            <Link
+              to="/admin"
+              className="flex items-center space-x-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1.5 rounded-full transition"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Quản Trị Admin</span>
+            </Link>
+          )}
+
           <Link
             to="/shop"
             className="flex items-center space-x-1.5 text-xs font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 px-3 py-1.5 rounded-full transition"

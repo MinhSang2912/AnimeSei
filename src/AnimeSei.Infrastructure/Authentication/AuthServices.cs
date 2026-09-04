@@ -11,34 +11,35 @@ namespace AnimeSei.Infrastructure.Authentication;
 
 public class JwtTokenGenerator : IJwtTokenGenerator
 {
-    private readonly IConfiguration _config;
+    private readonly IConfiguration _configuration;
 
-    public JwtTokenGenerator(IConfiguration config)
+    public JwtTokenGenerator(IConfiguration configuration)
     {
-        _config = config;
+        _configuration = configuration;
     }
 
     public string GenerateAccessToken(User user)
     {
-        var secretKey = _config["Jwt:SecretKey"] 
-            ?? "YOUR_JWT_SECRET_KEY_HERE_MUST_BE_AT_LEAST_32_CHARACTERS_LONG";
-        
+        var secretKey = _configuration["Jwt:SecretKey"] ?? "AnimeSeiSuperSecretKeyForJWTAuth2026!#$";
+        var issuer = _configuration["Jwt:Issuer"] ?? "AnimeSei";
+        var audience = _configuration["Jwt:Audience"] ?? "AnimeSeiClient";
+        var expirationMinutes = int.TryParse(_configuration["Jwt:AccessTokenExpirationMinutes"], out var exp) ? exp : 60;
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Role, user.Role ?? "User")
         };
 
-        var expirationMinutes = int.TryParse(_config["Jwt:AccessTokenExpirationMinutes"], out var mins) ? mins : 30;
-
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"] ?? "AnimeSei",
-            audience: _config["Jwt:Audience"] ?? "AnimeSeiClient",
+            issuer: issuer,
+            audience: audience,
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
             signingCredentials: credentials);
@@ -52,7 +53,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomNumber);
 
-        var expirationDays = int.TryParse(_config["Jwt:RefreshTokenExpirationDays"], out var days) ? days : 7;
+        var expirationDays = int.TryParse(_configuration["Jwt:RefreshTokenExpirationDays"], out var exp) ? exp : 7;
 
         return new RefreshToken
         {
@@ -73,6 +74,14 @@ public class PasswordHasher : IPasswordHasher
 
     public bool VerifyPassword(string password, string passwordHash)
     {
-        return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+        if (string.IsNullOrEmpty(passwordHash)) return false;
+        try
+        {
+            return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

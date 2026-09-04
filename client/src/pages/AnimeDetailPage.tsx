@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Anime, ApiResponse } from '../types/anime';
+import { formatAnimeStatus } from '../utils/status';
 import { Star, Play, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -201,8 +202,8 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
               <span className="bg-pink-500/10 border border-pink-500/20 text-pink-300 font-semibold px-3 py-1 rounded-lg text-sm">
                 {anime.format === 'MOVIE' ? 'Anime Movie' : anime.format === 'OVA' ? 'Anime OVA' : anime.format === 'ONA' ? 'Anime ONA' : 'Anime TV'}
               </span>
-              <span className="bg-purple-900/40 border border-purple-700/50 text-purple-300 px-3 py-1 rounded-lg text-sm">
-                {anime.status}
+              <span className="bg-purple-900/40 border border-purple-700/50 text-purple-300 font-semibold px-3 py-1 rounded-lg text-sm">
+                {formatAnimeStatus(anime.status)}
               </span>
             </div>
 

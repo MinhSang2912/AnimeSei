@@ -13,6 +13,7 @@ export const PointShopPage: React.FC<PointShopProps> = ({ user, onUpdatePoints }
   const [badges, setBadges] = useState<any[]>([]);
   const [borders, setBorders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     const fetchShopItems = async () => {
@@ -96,19 +97,34 @@ export const PointShopPage: React.FC<PointShopProps> = ({ user, onUpdatePoints }
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {badges.map((badge) => (
-              <div key={badge.id} className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between hover:border-purple-500/40 transition">
+              <div key={badge.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition">
                 <div className="flex items-center space-x-4">
-                  <div className="text-3xl p-3 bg-slate-800 rounded-xl border border-slate-700">{badge.iconUrl}</div>
+                  <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700/80 flex items-center justify-center overflow-hidden shadow-inner flex-shrink-0 relative group">
+                    {badge.imageUrl ? (
+                      <div 
+                        onClick={() => setPreviewImage({ url: badge.imageUrl, title: badge.name })}
+                        className="w-full h-full cursor-zoom-in relative"
+                        title="Click để phóng to ảnh Huy Hiệu"
+                      >
+                        <img src={badge.imageUrl} alt={badge.name} className="w-full h-full object-cover rounded-2xl group-hover:scale-110 transition duration-300" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[10px] font-bold">
+                          Phóng To
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-3xl">{badge.iconUrl}</span>
+                    )}
+                  </div>
                   <div>
                     <h3 className="font-bold text-slate-100 text-sm">{badge.name}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{badge.description}</p>
-                    <span className="inline-block mt-2 text-xs font-semibold text-amber-400">{badge.requiredPoints} Điểm</span>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{badge.description}</p>
+                    <span className="inline-block mt-2 text-xs font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-md">{badge.requiredPoints} Điểm</span>
                   </div>
                 </div>
 
                 <button
                   onClick={() => handleBuy(1, badge.id, badge.requiredPoints)}
-                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-lg transition"
+                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg transition cursor-pointer flex-shrink-0 ml-2"
                 >
                   Đổi Ngay
                 </button>
@@ -126,21 +142,36 @@ export const PointShopPage: React.FC<PointShopProps> = ({ user, onUpdatePoints }
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {borders.map((border) => (
-              <div key={border.id} className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex items-center justify-between hover:border-purple-500/40 transition">
+              <div key={border.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/5 transition">
                 <div className="flex items-center space-x-4">
-                  <div className={`w-12 h-12 rounded-full border-4 ${border.frameUrl} bg-slate-800 flex items-center justify-center text-xs font-bold text-purple-400`}>
-                    User
+                  <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700/80 flex items-center justify-center overflow-hidden shadow-inner flex-shrink-0 relative group">
+                    {border.imageUrl ? (
+                      <div 
+                        onClick={() => setPreviewImage({ url: border.imageUrl, title: border.name })}
+                        className="w-full h-full cursor-zoom-in relative"
+                        title="Click để phóng to ảnh Viền Khung"
+                      >
+                        <img src={border.imageUrl} alt={border.name} className="w-full h-full object-cover rounded-2xl group-hover:scale-110 transition duration-300" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[10px] font-bold">
+                          Phóng To
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full border-4 ${border.frameUrl} bg-slate-800 flex items-center justify-center text-xs font-bold text-purple-400`}>
+                        User
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-100 text-sm">{border.name}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{border.description}</p>
-                    <span className="inline-block mt-2 text-xs font-semibold text-amber-400">{border.requiredPoints} Điểm</span>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{border.description}</p>
+                    <span className="inline-block mt-2 text-xs font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-md">{border.requiredPoints} Điểm</span>
                   </div>
                 </div>
 
                 <button
                   onClick={() => handleBuy(2, border.id, border.requiredPoints)}
-                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-lg transition"
+                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg transition cursor-pointer flex-shrink-0 ml-2"
                 >
                   Đổi Ngay
                 </button>
@@ -149,6 +180,35 @@ export const PointShopPage: React.FC<PointShopProps> = ({ user, onUpdatePoints }
           </div>
         </div>
       </div>
+
+      {/* Fullsize Image Lightbox Modal */}
+      {previewImage && (
+        <div 
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md cursor-zoom-out animate-fadeIn"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="relative bg-slate-900 border border-slate-700/80 p-6 rounded-3xl max-w-lg w-full flex flex-col items-center justify-center shadow-2xl"
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition cursor-pointer"
+            >
+              ✕
+            </button>
+            <h3 className="font-bold text-white text-lg mb-4 text-center">{previewImage.title}</h3>
+            <div className="w-64 h-64 sm:w-80 sm:h-80 bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center shadow-inner p-2">
+              <img 
+                src={previewImage.url} 
+                alt={previewImage.title} 
+                className="w-full h-full object-contain drop-shadow-xl" 
+              />
+            </div>
+            <p className="text-slate-400 text-xs mt-4">Nhấp vào bất kỳ đâu bên ngoài để đóng</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

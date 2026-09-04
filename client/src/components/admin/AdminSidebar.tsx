@@ -1,9 +1,11 @@
 import React from 'react';
-import { BarChart3, Film, Users } from 'lucide-react';
+import { BarChart3, Film, Users, Award, Shield } from 'lucide-react';
+
+export type AdminTabType = 'stats' | 'anime' | 'users' | 'badges' | 'borders';
 
 interface AdminSidebarProps {
-  activeTab: 'stats' | 'anime' | 'users';
-  onTabChange: (tab: 'stats' | 'anime' | 'users') => void;
+  activeTab: AdminTabType;
+  onTabChange: (tab: AdminTabType) => void;
   totalCachedAnime: number;
   totalUsers: number;
 }
@@ -78,6 +80,36 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           >
             {totalUsers}
           </span>
+        </button>
+
+        {/* Tab 4: Badges Management */}
+        <button
+          onClick={() => onTabChange('badges')}
+          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${
+            activeTab === 'badges'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <Award className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span className="whitespace-nowrap font-bold">Quản Lý Huy Hiệu</span>
+          </div>
+        </button>
+
+        {/* Tab 5: Borders Management */}
+        <button
+          onClick={() => onTabChange('borders')}
+          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${
+            activeTab === 'borders'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <Shield className="w-4 h-4 text-purple-400 flex-shrink-0" />
+            <span className="whitespace-nowrap font-bold">Quản Lý Viền Khung</span>
+          </div>
         </button>
       </nav>
     </div>

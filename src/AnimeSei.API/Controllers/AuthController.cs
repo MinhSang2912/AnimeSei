@@ -28,4 +28,12 @@ public class AuthController : ControllerBase
         var result = await _mediator.Send(command);
         return StatusCode(result.StatusCode, result);
     }
+
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
+    {
+        var result = await _mediator.Send(command);
+        return StatusCode(result.StatusCode, result);
+    }
 }
+

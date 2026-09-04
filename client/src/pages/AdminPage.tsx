@@ -2,13 +2,15 @@ import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import type { Anime, ApiResponse, PagedResult } from '../types/anime';
 import { Shield, Loader2, Activity, GripVertical } from 'lucide-react';
-import { AdminSidebar } from '../components/admin/AdminSidebar';
+import { AdminSidebar, type AdminTabType } from '../components/admin/AdminSidebar';
 import { AdminStatsTab } from '../components/admin/AdminStatsTab';
 import { AdminAnimeTab } from '../components/admin/AdminAnimeTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
+import { AdminBadgesTab } from '../components/admin/AdminBadgesTab';
+import { AdminBordersTab } from '../components/admin/AdminBordersTab';
 
 export const AdminPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'stats' | 'anime' | 'users'>('stats');
+  const [activeTab, setActiveTab] = useState<AdminTabType>('stats');
 
   // Resizable Sidebar State (Default 270px, Min 240px, Max 450px)
   const [sidebarWidth, setSidebarWidth] = useState<number>(270);
@@ -95,9 +97,7 @@ export const AdminPage: React.FC = () => {
     const fetchAnime = async () => {
       setAnimeLoading(true);
       try {
-        const endpoint = animeSearch.trim()
-          ? `/anime/search?q=${encodeURIComponent(animeSearch.trim())}&page=${animePage}&perPage=12`
-          : `/anime/recent?page=${animePage}&perPage=12&format=ALL&country=ALL`;
+        const endpoint = `/admin/anime?page=${animePage}&perPage=12${animeSearch.trim() ? `&q=${encodeURIComponent(animeSearch.trim())}` : ''}`;
 
         const res = await api.get<ApiResponse<PagedResult<Anime>>>(endpoint);
         if (res.data.success && res.data.data) {
@@ -157,7 +157,7 @@ export const AdminPage: React.FC = () => {
               activeTab={activeTab}
               onTabChange={setActiveTab}
               totalCachedAnime={stats?.totalCachedAnime || 0}
-              totalUsers={users.length}
+              totalUsers={Array.isArray(users) ? users.length : 0}
             />
           </div>
 
@@ -199,6 +199,10 @@ export const AdminPage: React.FC = () => {
                 onSearchChange={setUserSearch}
               />
             )}
+
+            {activeTab === 'badges' && <AdminBadgesTab />}
+
+            {activeTab === 'borders' && <AdminBordersTab />}
           </div>
 
         </div>

@@ -1,6 +1,8 @@
+using System.Text.Json;
 using AnimeSei.Application.Common.Interfaces;
 using AnimeSei.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace AnimeSei.Infrastructure.Data;
 
@@ -87,14 +89,21 @@ public class AnimeSeiDbContext : DbContext, IAnimeSeiDbContext
         });
 
         // AnimeCache Configuration
+        var animeRelationComparer = new ValueComparer<List<AnimeRelationDto>>(
+            (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
+            c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            c => JsonSerializer.Deserialize<List<AnimeRelationDto>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!
+        );
+
         modelBuilder.Entity<AnimeCache>(entity =>
         {
             entity.HasKey(a => a.Id);
             entity.Property(a => a.Relations)
                   .HasConversion(
-                      v => System.Text.Json.JsonSerializer.Serialize(v ?? new List<AnimeRelationDto>(), (System.Text.Json.JsonSerializerOptions?)null),
-                      v => string.IsNullOrEmpty(v) ? new List<AnimeRelationDto>() : System.Text.Json.JsonSerializer.Deserialize<List<AnimeRelationDto>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<AnimeRelationDto>()
-                  );
+                      v => JsonSerializer.Serialize(v ?? new List<AnimeRelationDto>(), (JsonSerializerOptions?)null),
+                      v => string.IsNullOrEmpty(v) ? new List<AnimeRelationDto>() : JsonSerializer.Deserialize<List<AnimeRelationDto>>(v, (JsonSerializerOptions?)null) ?? new List<AnimeRelationDto>()
+                  )
+                  .Metadata.SetValueComparer(animeRelationComparer);
         });
     }
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Play } from 'lucide-react';
 import type { Anime } from '../types/anime';
+import { formatAnimeStatus } from '../utils/status';
 
 interface AnimeCardProps {
   anime: Anime;
@@ -58,6 +59,19 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
         {anime.episodes && (
           <div className="absolute bottom-2 left-2 bg-purple-900/80 backdrop-blur-md px-2 py-0.5 rounded text-[11px] font-medium text-purple-200">
             {anime.episodes} tập
+          </div>
+        )}
+
+        {/* Status Badge */}
+        {anime.status && (
+          <div className={`absolute bottom-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-md border shadow-md ${
+            anime.status === 'FINISHED'
+              ? 'bg-emerald-900/80 border-emerald-600/50 text-emerald-200'
+              : anime.status === 'RELEASING'
+              ? 'bg-purple-900/80 border-purple-600/50 text-purple-200'
+              : 'bg-slate-900/80 border-slate-700/50 text-slate-300'
+          }`}>
+            {formatAnimeStatus(anime.status)}
           </div>
         )}
       </div>

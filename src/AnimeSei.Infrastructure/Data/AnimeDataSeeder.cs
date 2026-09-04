@@ -1,4 +1,5 @@
 using AnimeSei.Application.Common.Interfaces;
+using AnimeSei.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,7 @@ public static class AnimeDataSeeder
         using var scope = serviceProvider.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<AnimeSeiDbContext>>();
         var dbContext = scope.ServiceProvider.GetRequiredService<IAnimeSeiDbContext>();
+        var passwordHasher = scope.ServiceProvider.GetService<IPasswordHasher>();
 
         try
         {
@@ -23,6 +25,8 @@ public static class AnimeDataSeeder
                 {
                     await concreteDb.Database.ExecuteSqlRawAsync(
                         @"ALTER TABLE ""AnimeCaches"" ADD COLUMN IF NOT EXISTS ""Relations"" text DEFAULT '[]';
+                          ALTER TABLE ""Badges"" ADD COLUMN IF NOT EXISTS ""ImageUrl"" text;
+                          ALTER TABLE ""Borders"" ADD COLUMN IF NOT EXISTS ""ImageUrl"" text;
                           UPDATE ""AnimeCaches"" SET ""Relations"" = '[]' WHERE ""Relations"" IS NULL;
                           UPDATE ""AnimeCaches"" 
                           SET ""StartDate"" = SUBSTRING(""StartDate"", 7, 4) || '-' || SUBSTRING(""StartDate"", 4, 2) || '-' || SUBSTRING(""StartDate"", 1, 2) 

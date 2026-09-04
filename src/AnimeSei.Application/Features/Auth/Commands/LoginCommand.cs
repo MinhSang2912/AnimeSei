@@ -29,7 +29,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Aut
 
         if (user == null || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
-            return ApiResponse<AuthResponseDto>.Fail("Tên đăng nhập/Email hoặc mật khẩu không chính xác", 400);
+            return ApiResponse<AuthResponseDto>.Fail("Tên đăng nhập, Email hoặc mật khẩu không chính xác", 400);
         }
 
         var accessToken = _jwtGenerator.GenerateAccessToken(user);

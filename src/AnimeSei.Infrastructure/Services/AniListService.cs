@@ -625,7 +625,7 @@ public class AniListService : IAniListService
                 .OrderByDescending(a => a.StartDate)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            int startDateGreater = 20100101; // default if DB empty
+            int startDateGreater = 20000101; // default if DB empty
 
             if (latestAnime != null && !string.IsNullOrEmpty(latestAnime.StartDate))
             {
@@ -651,7 +651,7 @@ public class AniListService : IAniListService
             var query = $@"
             query {{
               Page(page: 1, perPage: 10) {{
-                media(type: ANIME, isAdult: false, genre_not_in: [""Hentai""], startDate_greater: {startDateGreater}, sort: [START_DATE]) {{
+                media(type: ANIME, startDate_greater: {startDateGreater}, sort: [START_DATE]) {{
                   id
                   title {{
                     romaji
