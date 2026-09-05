@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Anime, ApiResponse } from '../types/anime';
 import { formatAnimeStatus } from '../utils/status';
-import { Star, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar, Play } from 'lucide-react';
+import { Star, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface AnimeDetailPageProps {
@@ -20,6 +20,7 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
   const [isTrailerValid, setIsTrailerValid] = useState(false);
+  const [episodeSearch, setEpisodeSearch] = useState('');
 
   useEffect(() => {
     if (!anime?.trailerId || anime.trailerSite?.toLowerCase() !== 'youtube') {
@@ -234,32 +235,56 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
             {/* Episode Count Display */}
             {(() => {
               const releasedCount = anime.currentEpisodes ?? anime.episodes ?? 0;
-              const totalCount = anime.episodes;
+              const episodes = Array.from({ length: releasedCount }, (_, i) => i + 1);
+              const filteredEpisodes = episodeSearch.trim()
+                ? episodes.filter((ep) => ep.toString().includes(episodeSearch.trim()))
+                : episodes;
+
               return (
                 <div className="mt-8 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                     <h3 className="text-lg font-bold text-white flex items-center space-x-2">
                       <Film className="w-5 h-5 text-purple-400" />
-                      <span>Danh Sách Các Tập</span>
+                      <span>Danh Sách Các Tập {releasedCount > 0 && `(${releasedCount} Tập)`}</span>
                     </h3>
-                    {anime.status === 'RELEASING' && (
-                      <span className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-                        Đang phát sóng
-                      </span>
-                    )}
+                    
+                    <div className="flex items-center space-x-2.5">
+                      {releasedCount > 24 && (
+                        <div className="relative flex items-center">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="Tìm số tập..."
+                            value={episodeSearch}
+                            onChange={(e) => setEpisodeSearch(e.target.value)}
+                            className="pl-8 pr-3 py-1 bg-slate-950/80 border border-slate-700/70 rounded-xl text-xs text-white placeholder-slate-500 w-32 focus:outline-none focus:border-purple-500 transition"
+                          />
+                        </div>
+                      )}
+                      {anime.status === 'RELEASING' && (
+                        <span className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex-shrink-0">
+                          Đang phát sóng
+                        </span>
+                      )}
+                    </div>
                   </div>
+
                   {releasedCount === 0 ? (
                     <p className="text-slate-400 text-xs italic">Phim chưa phát sóng tập nào.</p>
+                  ) : filteredEpisodes.length === 0 ? (
+                    <p className="text-slate-400 text-xs italic py-4 text-center">Không tìm thấy tập nào khớp với &quot;{episodeSearch}&quot;.</p>
                   ) : (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
-                      {Array.from({ length: releasedCount }, (_, i) => i + 1).map((ep) => (
-                        <div
-                          key={ep}
-                          className="py-2 px-3 bg-slate-900/80 border border-slate-800 text-slate-300 rounded-xl text-center font-bold text-xs shadow-sm select-none"
-                        >
-                          Tập {ep}
-                        </div>
-                      ))}
+                    <div className="max-h-72 overflow-y-auto overscroll-contain pr-2">
+                      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
+                        {filteredEpisodes.map((ep) => (
+                          <div
+                            key={ep}
+                            className="py-2 px-3 bg-slate-900/80 border border-slate-800 text-slate-300 rounded-xl text-center font-bold text-xs shadow-sm select-none"
+                          >
+                            Tập {ep}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

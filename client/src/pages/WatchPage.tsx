@@ -34,6 +34,13 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
   const [postingComment, setPostingComment] = useState(false);
 
   const timerRef = useRef<any>(null);
+  const activeEpRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (activeEpRef.current) {
+      activeEpRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [currentEp, loading]);
 
   // 1. Fetch Anime detail, list of episodes & comments
   useEffect(() => {
@@ -225,19 +232,19 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
                 🍿 VidSrc VIP (vsembed.ru)
               </button>
               <button
-                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://vidsrc.me/embed/anime?anilist=${anime.id}&episode=${currentEp}`, hlsUrl: null, serverName: 'VidSrc Me' } : null)}
+                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://vidsrc.me/embed/anime?anilist=${anime.id}&episode=${currentEp}`, hlsUrl: undefined, serverName: 'VidSrc Me' } : null)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('VidSrc Me') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
               >
                 VidSrc.me
               </button>
               <button
-                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://2embed.cc/embed/anime/${anime.id}/${currentEp}`, hlsUrl: null, serverName: '2Embed' } : null)}
+                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://2embed.cc/embed/anime/${anime.id}/${currentEp}`, hlsUrl: undefined, serverName: '2Embed' } : null)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('2Embed') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
               >
                 2Embed
               </button>
               <button
-                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://vidsrc.to/embed/anime/${anime.id}/${currentEp}`, hlsUrl: null, serverName: 'VidSrc.to' } : null)}
+                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://vidsrc.to/embed/anime/${anime.id}/${currentEp}`, hlsUrl: undefined, serverName: 'VidSrc.to' } : null)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('VidSrc.to') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
               >
                 VidSrc.to
@@ -289,23 +296,26 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
                 <span className="text-xs text-slate-400">Đang xem: Tập {currentEp}</span>
               </div>
 
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
-                {Array.from({ length: totalEpisodesCount }, (_, i) => i + 1).map((ep) => {
-                  const isActive = ep === currentEp;
-                  return (
-                    <button
-                      key={ep}
-                      onClick={() => setSearchParams({ ep: String(ep) })}
-                      className={`py-2 px-3 rounded-xl text-center font-bold text-xs transition shadow-sm border ${
-                        isActive
-                          ? 'bg-purple-600 text-white border-purple-500 shadow-purple-600/40 ring-2 ring-purple-400/30'
-                          : 'bg-slate-800 hover:bg-purple-900/50 text-slate-300 border-slate-700'
-                      }`}
-                    >
-                      Tập {ep}
-                    </button>
-                  );
-                })}
+              <div className="max-h-72 overflow-y-auto overscroll-contain pr-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
+                  {Array.from({ length: totalEpisodesCount }, (_, i) => i + 1).map((ep) => {
+                    const isActive = ep === currentEp;
+                    return (
+                      <button
+                        key={ep}
+                        ref={isActive ? activeEpRef : undefined}
+                        onClick={() => setSearchParams({ ep: String(ep) })}
+                        className={`py-2 px-3 rounded-xl text-center font-bold text-xs transition shadow-sm border ${
+                          isActive
+                            ? 'bg-purple-600 text-white border-purple-500 shadow-purple-600/40 ring-2 ring-purple-400/30'
+                            : 'bg-slate-800 hover:bg-purple-900/50 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        Tập {ep}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
