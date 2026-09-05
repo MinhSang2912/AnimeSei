@@ -1,9 +1,112 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useLayoutEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Anime, ApiResponse, PagedResult } from '../types/anime';
 import { AnimeCard } from '../components/AnimeCard';
-import { Film, Filter, Globe } from 'lucide-react';
+import { Film, Filter, ChevronDown, Check } from 'lucide-react';
+
+const GENRES = [
+  { value: 'ALL', label: 'Tất cả thể loại' },
+  { value: 'Action', label: 'Action (Hành động)' },
+  { value: 'Adventure', label: 'Adventure (Phiêu lưu)' },
+  { value: 'Comedy', label: 'Comedy (Hài hước)' },
+  { value: 'Drama', label: 'Drama (Kịch tính)' },
+  { value: 'Ecchi', label: 'Ecchi' },
+  { value: 'Fantasy', label: 'Fantasy (Kỳ ảo)' },
+  { value: 'Horror', label: 'Horror (Kinh dị)' },
+  { value: 'Mahou Shoujo', label: 'Mahou Shoujo (Phép thuật)' },
+  { value: 'Mecha', label: 'Mecha (Robot)' },
+  { value: 'Music', label: 'Music (Âm nhạc)' },
+  { value: 'Mystery', label: 'Mystery (Bí ẩn)' },
+  { value: 'Psychological', label: 'Psychological (Tâm lý)' },
+  { value: 'Romance', label: 'Romance (Lãng mạn)' },
+  { value: 'Sci-Fi', label: 'Sci-Fi (Viễn tưởng)' },
+  { value: 'Slice of Life', label: 'Slice of Life (Đời thường)' },
+  { value: 'Sports', label: 'Sports (Thể thao)' },
+  { value: 'Supernatural', label: 'Supernatural (Siêu nhiên)' },
+  { value: 'Thriller', label: 'Thriller (Giật gân)' },
+];
+
+const COUNTRIES = [
+  { value: 'JP', label: 'Anime (Nhật Bản)' },
+  { value: 'CN', label: 'Phim 3D (Trung Quốc)' },
+  { value: 'ALL', label: 'Tất cả quốc gia' },
+];
+
+const FORMATS = [
+  { value: 'TV', label: 'TV Series' },
+  { value: 'MOVIE', label: 'Phim rạp (Movie)' },
+  { value: 'OVA', label: 'OVA' },
+  { value: 'ONA', label: 'ONA' },
+  { value: 'ALL', label: 'Tất cả loại phim' },
+];
+
+interface CustomSelectProps {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (val: string) => void;
+  minWidth?: string;
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({ value, options, onChange, minWidth = 'w-48' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((o) => o.value === value) || options[0];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className={`relative ${minWidth}`} ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between bg-slate-950 hover:bg-slate-900 border border-slate-800 focus:border-purple-500 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-200 transition-all duration-200 shadow-inner cursor-pointer"
+      >
+        <span className="truncate">{selectedOption?.label}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-2 ${
+            isOpen ? 'rotate-180 text-purple-400' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 shadow-2xl shadow-black/80 max-h-64 overflow-y-auto space-y-1">
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 text-left ${
+                  isSelected
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <span className="truncate">{opt.label}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1.5" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const HomePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,6 +115,7 @@ export const HomePage: React.FC = () => {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const format = searchParams.get('format') || 'TV';
   const country = searchParams.get('country') || 'JP';
+  const genre = searchParams.get('genre') || 'ALL';
 
   const [animeList, setAnimeList] = useState<Anime[]>([]);
   const [lastPage, setLastPage] = useState<number>(1);
@@ -28,10 +132,11 @@ export const HomePage: React.FC = () => {
       try {
         const formatQuery = format && format !== 'ALL' ? `&format=${format}` : (format === 'ALL' ? '&format=ALL' : '');
         const countryQuery = country ? `&country=${country}` : '';
+        const genreQuery = genre && genre !== 'ALL' ? `&genre=${encodeURIComponent(genre)}` : '';
 
         const endpoint = query
-          ? `/anime/search?q=${encodeURIComponent(query)}&page=${page}&perPage=20${formatQuery}${countryQuery}`
-          : `/anime/recent?page=${page}&perPage=20${formatQuery}${countryQuery}`;
+          ? `/anime/search?q=${encodeURIComponent(query)}&page=${page}&perPage=20${formatQuery}${countryQuery}${genreQuery}`
+          : `/anime/recent?page=${page}&perPage=20${formatQuery}${countryQuery}${genreQuery}`;
 
         const res = await api.get<ApiResponse<PagedResult<Anime>>>(endpoint);
         if (res.data.success && res.data.data) {
@@ -47,7 +152,7 @@ export const HomePage: React.FC = () => {
     };
 
     fetchAnime();
-  }, [query, page, format, country]);
+  }, [query, page, format, country, genre]);
 
   // Save scroll position per URL search query
   useEffect(() => {
@@ -72,15 +177,17 @@ export const HomePage: React.FC = () => {
     }
   }, [loading, animeList.length, searchParams]);
 
-  const updateFilters = (newFormat?: string, newCountry?: string, newPage: number = 1) => {
+  const updateFilters = (newFormat?: string, newCountry?: string, newGenre?: string, newPage: number = 1) => {
     const nextFormat = newFormat !== undefined ? newFormat : format;
     const nextCountry = newCountry !== undefined ? newCountry : country;
+    const nextGenre = newGenre !== undefined ? newGenre : genre;
 
     const newParams: Record<string, string> = {};
     if (query) newParams.q = query;
     if (newPage > 1) newParams.page = newPage.toString();
     if (nextFormat && nextFormat !== 'TV') newParams.format = nextFormat;
     if (nextCountry && nextCountry !== 'JP') newParams.country = nextCountry;
+    if (nextGenre && nextGenre !== 'ALL') newParams.genre = nextGenre;
 
     setSearchParams(newParams);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -90,7 +197,7 @@ export const HomePage: React.FC = () => {
 
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > effectiveLastPage) return;
-    updateFilters(undefined, undefined, newPage);
+    updateFilters(undefined, undefined, undefined, newPage);
   };
 
   const handleJumpPageSubmit = (e: React.FormEvent) => {
@@ -123,42 +230,36 @@ export const HomePage: React.FC = () => {
         )}
 
         {/* Filter Bar Controls */}
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xl">
-          <div className="flex items-center space-x-2 text-sm font-semibold text-slate-300">
+        <div className="bg-slate-900/80 border border-slate-800 p-4 sm:p-5 rounded-2xl mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 sm:gap-6 shadow-xl relative z-20">
+          <div className="flex items-center space-x-2 text-sm font-bold text-slate-200">
             <Filter className="w-4 h-4 text-purple-400" />
             <span>Bộ lọc phim:</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* Country Select Dropdown */}
-            <div className="flex items-center space-x-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 focus-within:border-amber-500 transition shadow-inner">
-              <Globe className="w-4 h-4 text-amber-400" />
-              <select
-                value={country}
-                onChange={(e) => updateFilters(undefined, e.target.value, 1)}
-                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold pr-2"
-              >
-                <option value="JP" className="bg-slate-900 text-slate-200">Anime</option>
-                <option value="CN" className="bg-slate-900 text-slate-200">3D</option>
-                <option value="ALL" className="bg-slate-900 text-slate-200">Tất cả</option>
-              </select>
-            </div>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            {/* Genre Custom Select Dropdown */}
+            <CustomSelect
+              value={genre}
+              options={GENRES}
+              onChange={(val) => updateFilters(undefined, undefined, val, 1)}
+              minWidth="w-52"
+            />
 
-            {/* Format Select Dropdown */}
-            <div className="flex items-center space-x-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 focus-within:border-purple-500 transition shadow-inner">
-              <Film className="w-4 h-4 text-purple-400" />
-              <select
-                value={format}
-                onChange={(e) => updateFilters(e.target.value, undefined, 1)}
-                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer font-bold pr-2"
-              >
-                <option value="TV" className="bg-slate-900 text-slate-200">📺 TV Series (Mặc định)</option>
-                <option value="MOVIE" className="bg-slate-900 text-slate-200">🎬 Phim rạp (Movie)</option>
-                <option value="OVA" className="bg-slate-900 text-slate-200">💿 OVA</option>
-                <option value="ONA" className="bg-slate-900 text-slate-200">🌐 ONA</option>
-                <option value="ALL" className="bg-slate-900 text-slate-200">✨ Tất cả loại phim</option>
-              </select>
-            </div>
+            {/* Country Custom Select Dropdown */}
+            <CustomSelect
+              value={country}
+              options={COUNTRIES}
+              onChange={(val) => updateFilters(undefined, val, undefined, 1)}
+              minWidth="w-48"
+            />
+
+            {/* Format Custom Select Dropdown */}
+            <CustomSelect
+              value={format}
+              options={FORMATS}
+              onChange={(val) => updateFilters(val, undefined, undefined, 1)}
+              minWidth="w-44"
+            />
           </div>
         </div>
 

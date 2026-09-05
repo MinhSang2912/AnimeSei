@@ -11,14 +11,12 @@ public class EpisodeService : IEpisodeService
 {
     private readonly IAnimeSeiDbContext _context;
     private readonly HttpClient _httpClient;
-    private readonly IAniWatchApiService _aniWatchApiService;
     private readonly ILogger<EpisodeService> _logger;
 
-    public EpisodeService(IAnimeSeiDbContext context, HttpClient httpClient, IAniWatchApiService aniWatchApiService, ILogger<EpisodeService> logger)
+    public EpisodeService(IAnimeSeiDbContext context, HttpClient httpClient, ILogger<EpisodeService> logger)
     {
         _context = context;
         _httpClient = httpClient;
-        _aniWatchApiService = aniWatchApiService;
         _logger = logger;
     }
 
@@ -68,14 +66,6 @@ public class EpisodeService : IEpisodeService
         var anime = await _context.AnimeCaches.FirstOrDefaultAsync(a => a.Id == animeId, cancellationToken);
         bool isMovie = anime?.Format?.ToUpper() == "MOVIE";
 
-        string titleToSearch = anime?.TitleRomaji ?? anime?.TitleEnglish ?? "";
-        string? hlsUrl = null;
-
-        if (!string.IsNullOrEmpty(titleToSearch))
-        {
-            hlsUrl = await _aniWatchApiService.GetHlsStreamUrlAsync(titleToSearch, episodeNumber, cancellationToken);
-        }
-
         string defaultEmbedUrl = isMovie
             ? $"https://vsembed.ru/embed/movie/{animeId}?ds_lang=vi,en&autonext=1"
             : $"https://vsembed.ru/embed/tv/{animeId}/1/{episodeNumber}?ds_lang=vi,en&autonext=1";
@@ -87,25 +77,17 @@ public class EpisodeService : IEpisodeService
                 AnimeId = animeId,
                 EpisodeNumber = episodeNumber,
                 Title = $"Tập {episodeNumber}",
-                HlsUrl = hlsUrl,
                 EmbedUrl = defaultEmbedUrl,
-                ServerName = !string.IsNullOrEmpty(hlsUrl) ? "AniWatch HLS Server (No Ads)" : "VidSrc VIP (vsembed.ru)",
+                ServerName = "VidSrc VIP (vsembed.ru)",
                 CreatedAt = DateTime.UtcNow
             };
             _context.Episodes.Add(episode);
             await _context.SaveChangesAsync(cancellationToken);
         }
-        else
+        else if (string.IsNullOrEmpty(episode.EmbedUrl) && string.IsNullOrEmpty(episode.HlsUrl))
         {
-            if (!string.IsNullOrEmpty(hlsUrl))
-            {
-                episode.HlsUrl = hlsUrl;
-                episode.ServerName = "AniWatch HLS Server (No Ads)";
-            }
-            if (string.IsNullOrEmpty(episode.EmbedUrl))
-            {
-                episode.EmbedUrl = defaultEmbedUrl;
-            }
+            episode.EmbedUrl = defaultEmbedUrl;
+            episode.ServerName = "VidSrc VIP (vsembed.ru)";
             await _context.SaveChangesAsync(cancellationToken);
         }
 

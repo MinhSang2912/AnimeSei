@@ -6,7 +6,6 @@ import { AuthModal } from './components/AuthModal';
 import { ScrollToTop } from './components/ScrollToTop';
 import { HomePage } from './pages/HomePage';
 import { AnimeDetailPage } from './pages/AnimeDetailPage';
-import { WatchPage } from './pages/WatchPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { PointShopPage } from './pages/PointShopPage';
@@ -90,7 +89,64 @@ export function App() {
     <BrowserRouter>
       <ScrollToTop />
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-        <Toaster position="top-right" />
+        <Toaster
+          position="top-right"
+          gutter={12}
+          containerStyle={{
+            top: 28,
+            right: 28,
+          }}
+          toastOptions={{
+            duration: 3500,
+            style: {
+              background: 'rgba(15, 23, 42, 0.96)',
+              color: '#ffffff',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(71, 85, 105, 0.7)',
+              borderRadius: '20px',
+              padding: '16px 24px',
+              fontSize: '15px',
+              fontWeight: '600',
+              lineHeight: '1.4',
+              minWidth: '320px',
+              maxWidth: '520px',
+              boxShadow: '0 25px 35px -5px rgba(0, 0, 0, 0.7), 0 10px 15px -5px rgba(0, 0, 0, 0.6), 0 0 25px rgba(168, 85, 247, 0.2)',
+            },
+            success: {
+              duration: 3200,
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#0f172a',
+              },
+              style: {
+                border: '1px solid rgba(16, 185, 129, 0.45)',
+                boxShadow: '0 25px 35px -5px rgba(0, 0, 0, 0.7), 0 0 25px rgba(16, 185, 129, 0.3)',
+              },
+            },
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#0f172a',
+              },
+              style: {
+                border: '1px solid rgba(239, 68, 68, 0.45)',
+                boxShadow: '0 25px 35px -5px rgba(0, 0, 0, 0.7), 0 0 25px rgba(239, 68, 68, 0.3)',
+              },
+            },
+            loading: {
+              iconTheme: {
+                primary: '#a855f7',
+                secondary: '#0f172a',
+              },
+              style: {
+                border: '1px solid rgba(168, 85, 247, 0.45)',
+                boxShadow: '0 25px 35px -5px rgba(0, 0, 0, 0.7), 0 0 25px rgba(168, 85, 247, 0.3)',
+              },
+            },
+          }}
+        />
         
         {/* Navbar with option to open Auth Modal */}
         <Navbar
@@ -110,7 +166,6 @@ export function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/anime/:id" element={<AnimeDetailPage user={user} onUpdatePoints={handleUpdatePoints} />} />
-            <Route path="/watch/:id" element={<WatchPage user={user} onUpdatePoints={handleUpdatePoints} />} />
             <Route path="/shop" element={<PointShopPage user={user} onUpdatePoints={handleUpdatePoints} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />
             <Route

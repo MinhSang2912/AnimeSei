@@ -60,6 +60,9 @@ public class AdminController : ControllerBase
     [HttpGet("anime")]
     public async Task<IActionResult> GetAnimeList(
         [FromQuery] string? q = null,
+        [FromQuery] string? format = null,
+        [FromQuery] string? country = null,
+        [FromQuery] string? genre = null,
         [FromQuery] int page = 1,
         [FromQuery] int perPage = 12)
     {
@@ -77,10 +80,26 @@ public class AdminController : ControllerBase
                 (a.TitleNative != null && EF.Functions.Like(a.TitleNative.ToLower(), $"%{search}%")));
         }
 
+        if (!string.IsNullOrWhiteSpace(format) && !string.Equals(format, "ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            var fmtUpper = format.ToUpper();
+            query = query.Where(a => a.Format != null && a.Format.ToUpper() == fmtUpper);
+        }
+
+        if (!string.IsNullOrWhiteSpace(country) && !string.Equals(country, "ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            var countryUpper = country.ToUpper();
+            query = query.Where(a => a.CountryOfOrigin != null && a.CountryOfOrigin.ToUpper() == countryUpper);
+        }
+
+        if (!string.IsNullOrWhiteSpace(genre) && !string.Equals(genre, "ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(a => a.Genres.Contains(genre));
+        }
+
         var totalItems = await query.CountAsync();
         var items = await query
-            .OrderByDescending(a => a.LastSyncedAt)
-            .ThenByDescending(a => a.Id)
+            .OrderByDescending(a => a.Id)
             .Skip((page - 1) * perPage)
             .Take(perPage)
             .ToListAsync();
@@ -95,6 +114,77 @@ public class AdminController : ControllerBase
         };
 
         return Ok(ApiResponse<PagedResult<AnimeCache>>.Ok(pagedResult, "Lấy danh sách Anime từ CSDL thành công"));
+    }
+
+    [HttpGet("genres")]
+    public async Task<IActionResult> GetGenres()
+    {
+        var rawGenres = await _context.AnimeCaches
+            .AsNoTracking()
+            .Select(a => a.Genres)
+            .ToListAsync();
+
+        var distinct = rawGenres
+            .SelectMany(g => g)
+            .Where(g => !string.IsNullOrWhiteSpace(g))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g)
+            .ToList();
+
+        return Ok(ApiResponse<List<string>>.Ok(distinct, "Lấy danh sách thể loại thành công"));
+    }
+
+    [HttpPut("anime/{id:int}")]
+    public async Task<IActionResult> UpdateAnime(int id, [FromBody] UpdateAnimeRequest request)
+    {
+        var anime = await _context.AnimeCaches.FirstOrDefaultAsync(a => a.Id == id);
+        if (anime == null)
+        {
+            return NotFound(ApiResponse<string>.Fail("Không tìm thấy anime để cập nhật", 404));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.TitleRomaji))
+        {
+            anime.TitleRomaji = request.TitleRomaji.Trim();
+        }
+        anime.TitleEnglish = string.IsNullOrWhiteSpace(request.TitleEnglish) ? null : request.TitleEnglish.Trim();
+        anime.TitleNative = string.IsNullOrWhiteSpace(request.TitleNative) ? null : request.TitleNative.Trim();
+        if (request.Description != null)
+        {
+            anime.Description = request.Description;
+        }
+        anime.CoverImage = string.IsNullOrWhiteSpace(request.CoverImage) ? null : request.CoverImage.Trim();
+        anime.BannerImage = string.IsNullOrWhiteSpace(request.BannerImage) ? null : request.BannerImage.Trim();
+        anime.Episodes = request.Episodes;
+        anime.CurrentEpisodes = request.CurrentEpisodes;
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            anime.Status = request.Status.Trim().ToUpper();
+        }
+        if (!string.IsNullOrWhiteSpace(request.Format))
+        {
+            anime.Format = request.Format.Trim().ToUpper();
+        }
+        if (!string.IsNullOrWhiteSpace(request.CountryOfOrigin))
+        {
+            anime.CountryOfOrigin = request.CountryOfOrigin.Trim().ToUpper();
+        }
+        anime.Is3D = request.Is3D;
+        if (request.Genres != null)
+        {
+            anime.Genres = request.Genres;
+        }
+        anime.AverageScore = request.AverageScore;
+        anime.SeasonYear = request.SeasonYear;
+        anime.StartDate = string.IsNullOrWhiteSpace(request.StartDate) ? null : request.StartDate.Trim();
+        anime.EndDate = string.IsNullOrWhiteSpace(request.EndDate) ? null : request.EndDate.Trim();
+        anime.TrailerSite = string.IsNullOrWhiteSpace(request.TrailerSite) ? null : request.TrailerSite.Trim();
+        anime.TrailerId = string.IsNullOrWhiteSpace(request.TrailerId) ? null : request.TrailerId.Trim();
+        anime.LastSyncedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<AnimeCache>.Ok(anime, "Cập nhật thông tin anime thành công"));
     }
 
     // Upload Item Image to Supabase Storage
@@ -117,6 +207,29 @@ public class AdminController : ControllerBase
             return BadRequest(ApiResponse<string>.Fail(ex.Message, 400));
         }
     }
+}
+
+public class UpdateAnimeRequest
+{
+    public string TitleRomaji { get; set; } = string.Empty;
+    public string? TitleEnglish { get; set; }
+    public string? TitleNative { get; set; }
+    public string? Description { get; set; }
+    public string? CoverImage { get; set; }
+    public string? BannerImage { get; set; }
+    public int? Episodes { get; set; }
+    public int? CurrentEpisodes { get; set; }
+    public string? Status { get; set; }
+    public string? Format { get; set; }
+    public string? CountryOfOrigin { get; set; }
+    public bool Is3D { get; set; }
+    public List<string>? Genres { get; set; }
+    public int? AverageScore { get; set; }
+    public int? SeasonYear { get; set; }
+    public string? StartDate { get; set; }
+    public string? EndDate { get; set; }
+    public string? TrailerSite { get; set; }
+    public string? TrailerId { get; set; }
 }
 
 

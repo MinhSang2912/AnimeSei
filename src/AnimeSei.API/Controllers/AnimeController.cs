@@ -22,9 +22,10 @@ public class AnimeController : ControllerBase
         [FromQuery] int perPage = 20,
         [FromQuery] string? format = "TV",
         [FromQuery] bool? is3D = null,
-        [FromQuery] string? country = "JP")
+        [FromQuery] string? country = "JP",
+        [FromQuery] string? genre = null)
     {
-        var result = await _aniListService.GetRecentAnimeAsync(page, perPage, format, is3D, country);
+        var result = await _aniListService.GetRecentAnimeAsync(page, perPage, format, is3D, country, genre);
         return Ok(ApiResponse<PagedResult<AnimeCache>>.Ok(result, "Lấy danh sách anime ra mắt gần đây nhất thành công"));
     }
 
@@ -35,14 +36,15 @@ public class AnimeController : ControllerBase
         [FromQuery] int perPage = 20,
         [FromQuery] string? format = null,
         [FromQuery] bool? is3D = null,
-        [FromQuery] string? country = null)
+        [FromQuery] string? country = null,
+        [FromQuery] string? genre = null)
     {
         if (string.IsNullOrWhiteSpace(q))
         {
-            return await GetRecent(page, perPage, format, is3D, country);
+            return await GetRecent(page, perPage, format, is3D, country, genre);
         }
 
-        var result = await _aniListService.SearchAnimeAsync(q, page, perPage, format, is3D, country);
+        var result = await _aniListService.SearchAnimeAsync(q, page, perPage, format, is3D, country, genre);
         return Ok(ApiResponse<PagedResult<AnimeCache>>.Ok(result, "Tìm kiếm anime thành công"));
     }
 

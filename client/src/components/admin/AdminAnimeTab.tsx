@@ -1,38 +1,181 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import type { Anime } from '../../types/anime';
+import { api } from '../../services/api';
+import type { Anime, ApiResponse } from '../../types/anime';
 import { formatAnimeStatus } from '../../utils/status';
-import { Search, Star, ExternalLink, Loader2, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Search, Star, ExternalLink, Loader2, ChevronLeft, ChevronRight, Info, ChevronDown, Check, Edit2 } from 'lucide-react';
 import { AdminAnimeDetailModal } from './AdminAnimeDetailModal';
+import { AdminAnimeEditModal } from './AdminAnimeEditModal';
+
+const DEFAULT_GENRES = [
+  { value: 'ALL', label: 'Tất cả thể loại' },
+  { value: 'Action', label: 'Action (Hành động)' },
+  { value: 'Adventure', label: 'Adventure (Phiêu lưu)' },
+  { value: 'Comedy', label: 'Comedy (Hài hước)' },
+  { value: 'Drama', label: 'Drama (Kịch tính)' },
+  { value: 'Ecchi', label: 'Ecchi' },
+  { value: 'Fantasy', label: 'Fantasy (Kỳ ảo)' },
+  { value: 'Hentai', label: 'Hentai' },
+  { value: 'Horror', label: 'Horror (Kinh dị)' },
+  { value: 'Mahou Shoujo', label: 'Mahou Shoujo (Phép thuật)' },
+  { value: 'Mecha', label: 'Mecha (Robot)' },
+  { value: 'Music', label: 'Music (Âm nhạc)' },
+  { value: 'Mystery', label: 'Mystery (Bí ẩn)' },
+  { value: 'Psychological', label: 'Psychological (Tâm lý)' },
+  { value: 'Romance', label: 'Romance (Lãng mạn)' },
+  { value: 'Sci-Fi', label: 'Sci-Fi (Viễn tưởng)' },
+  { value: 'Slice of Life', label: 'Slice of Life (Đời thường)' },
+  { value: 'Sports', label: 'Sports (Thể thao)' },
+  { value: 'Supernatural', label: 'Supernatural (Siêu nhiên)' },
+  { value: 'Thriller', label: 'Thriller (Giật gân)' },
+];
+
+const COUNTRIES = [
+  { value: 'ALL', label: 'Tất cả quốc gia' },
+  { value: 'JP', label: 'Anime (Nhật Bản)' },
+  { value: 'CN', label: 'Phim 3D (Trung Quốc)' },
+];
+
+const FORMATS = [
+  { value: 'ALL', label: 'Tất cả loại phim' },
+  { value: 'TV', label: 'TV Series' },
+  { value: 'MOVIE', label: 'Phim rạp (Movie)' },
+  { value: 'OVA', label: 'OVA' },
+  { value: 'ONA', label: 'ONA' },
+];
+
+interface CustomSelectProps {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (val: string) => void;
+  minWidth?: string;
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({ value, options, onChange, minWidth = 'w-44' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((o) => o.value === value) || options[0];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className={`relative ${minWidth}`} ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between bg-slate-950 hover:bg-slate-900 border border-slate-800 focus:border-purple-500 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-200 transition shadow-inner cursor-pointer"
+      >
+        <span className="truncate">{selectedOption?.label}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-1.5 ${
+            isOpen ? 'rotate-180 text-purple-400' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 shadow-2xl shadow-black/80 max-h-60 overflow-y-auto space-y-1">
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 text-left ${
+                  isSelected
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <span className="truncate">{opt.label}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1.5" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface AdminAnimeTabProps {
   animeList: Anime[];
   animeSearch: string;
   onSearchChange: (search: string) => void;
+  animeFormat: string;
+  onFormatChange: (fmt: string) => void;
+  animeCountry: string;
+  onCountryChange: (cnt: string) => void;
+  animeGenre: string;
+  onGenreChange: (gnr: string) => void;
   animePage: number;
   onPageChange: (page: number) => void;
   animeTotal: number;
   animeLastPage: number;
   animeLoading: boolean;
+  onAnimeUpdated?: (updatedAnime: Anime) => void;
 }
 
 export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
   animeList,
   animeSearch,
   onSearchChange,
+  animeFormat,
+  onFormatChange,
+  animeCountry,
+  onCountryChange,
+  animeGenre,
+  onGenreChange,
   animePage,
   onPageChange,
   animeTotal,
   animeLastPage,
   animeLoading,
+  onAnimeUpdated,
 }) => {
   const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingAnime, setEditingAnime] = useState<Anime | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [inputPage, setInputPage] = useState<string>(animePage.toString());
+  const [genreOptions, setGenreOptions] = useState<{ value: string; label: string }[]>(DEFAULT_GENRES);
 
   useEffect(() => {
     setInputPage(animePage.toString());
   }, [animePage]);
+
+  // Load all unique genres from database so no genre is omitted
+  useEffect(() => {
+    const fetchDbGenres = async () => {
+      try {
+        const res = await api.get<ApiResponse<string[]>>('/admin/genres');
+        if (res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+          const dbGenres = res.data.data.filter((g) => Boolean(g?.trim()));
+          const options = [
+            { value: 'ALL', label: 'Tất cả thể loại' },
+            ...dbGenres.map((g) => ({ value: g, label: g })),
+          ];
+          setGenreOptions(options);
+        }
+      } catch (err) {
+        console.error('Failed to load genres from DB:', err);
+      }
+    };
+    fetchDbGenres();
+  }, []);
 
   const handleOpenDetail = (anime: Anime) => {
     setSelectedAnime(anime);
@@ -41,22 +184,44 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-      {/* Search & Header Bar */}
-      <div className="p-5 border-b border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="font-bold text-white text-base">Danh Sách Anime</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Sắp xếp theo ngày đồng bộ mới nhất (Tổng: {animeTotal} bộ)</p>
-        </div>
+      {/* Search & Header Bar with Filter Controls */}
+      <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px]">
+            <input
+              type="text"
+              placeholder="Tìm kiếm anime theo tên..."
+              value={animeSearch}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full bg-slate-950 text-slate-200 placeholder-slate-400 text-xs rounded-xl pl-9 pr-4 py-2.5 border border-slate-800 focus:outline-none focus:border-purple-500 transition shadow-inner font-medium"
+            />
+            <Search className="absolute left-3 top-3 w-3.5 h-3.5 text-slate-400" />
+          </div>
 
-        <div className="relative w-full sm:w-72">
-          <input
-            type="text"
-            placeholder="Tìm kiếm anime trong CSDL..."
-            value={animeSearch}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full bg-slate-950 text-slate-200 placeholder-slate-400 text-xs rounded-xl pl-9 pr-4 py-2 border border-slate-800 focus:outline-none focus:border-purple-500 transition shadow-inner"
+          {/* Genre Filter */}
+          <CustomSelect
+            value={animeGenre}
+            options={genreOptions}
+            onChange={onGenreChange}
+            minWidth="w-48"
           />
-          <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
+
+          {/* Country Filter */}
+          <CustomSelect
+            value={animeCountry}
+            options={COUNTRIES}
+            onChange={onCountryChange}
+            minWidth="w-44"
+          />
+
+          {/* Format Filter */}
+          <CustomSelect
+            value={animeFormat}
+            options={FORMATS}
+            onChange={onFormatChange}
+            minWidth="w-40"
+          />
         </div>
       </div>
 
@@ -131,6 +296,17 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center space-x-2">
                       <button
+                        onClick={() => {
+                          setEditingAnime(a);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-600 border border-amber-500/30 text-amber-300 hover:text-white rounded-lg transition text-[11px] font-semibold cursor-pointer"
+                        title="Chỉnh sửa thông tin phim"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        <span>Sửa</span>
+                      </button>
+                      <button
                         onClick={() => handleOpenDetail(a)}
                         className="inline-flex items-center space-x-1 px-2.5 py-1 bg-purple-600/20 hover:bg-purple-600 border border-purple-500/30 text-purple-300 hover:text-white rounded-lg transition text-[11px] font-semibold cursor-pointer"
                         title="Xem đầy đủ thông tin chi tiết phim"
@@ -140,9 +316,8 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
                       </button>
                       <Link
                         to={`/anime/${a.id}`}
-                        target="_blank"
                         className="inline-flex items-center space-x-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition text-[11px] font-semibold cursor-pointer"
-                        title="Mở trang xem phim"
+                        title="Đi tới trang xem phim"
                       >
                         <ExternalLink className="w-3 h-3" />
                       </Link>
@@ -247,6 +422,23 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
           setIsModalOpen(false);
           setSelectedAnime(null);
         }}
+      />
+
+      {/* Edit Form Modal */}
+      <AdminAnimeEditModal
+        anime={editingAnime}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingAnime(null);
+        }}
+        onAnimeUpdated={(updated) => {
+          onAnimeUpdated?.(updated);
+          if (selectedAnime?.id === updated.id) {
+            setSelectedAnime(updated);
+          }
+        }}
+        availableGenres={genreOptions.map((g) => g.value)}
       />
     </div>
   );

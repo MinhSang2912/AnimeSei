@@ -28,10 +28,12 @@ public class AniListService : IAniListService
         string? format = null,
         bool? is3D = null,
         string? country = null,
+        string? genre = null,
         CancellationToken cancellationToken = default)
     {
         bool hasFormat = !string.IsNullOrWhiteSpace(format) && !string.Equals(format, "ALL", StringComparison.OrdinalIgnoreCase);
         bool hasCountry = !string.IsNullOrWhiteSpace(country) && !string.Equals(country, "ALL", StringComparison.OrdinalIgnoreCase);
+        bool hasGenre = !string.IsNullOrWhiteSpace(genre) && !string.Equals(genre, "ALL", StringComparison.OrdinalIgnoreCase);
 
         try
         {
@@ -51,6 +53,10 @@ public class AniListService : IAniListService
             {
                 var countryUpper = country!.ToUpper();
                 queryable = queryable.Where(a => a.CountryOfOrigin != null && a.CountryOfOrigin.ToUpper() == countryUpper);
+            }
+            if (hasGenre)
+            {
+                queryable = queryable.Where(a => a.Genres.Contains(genre!));
             }
             if (is3D.HasValue)
             {
@@ -122,10 +128,12 @@ public class AniListService : IAniListService
         string? format = null,
         bool? is3D = null,
         string? country = null,
+        string? genre = null,
         CancellationToken cancellationToken = default)
     {
         bool hasFormat = !string.IsNullOrWhiteSpace(format) && !string.Equals(format, "ALL", StringComparison.OrdinalIgnoreCase);
         bool hasCountry = !string.IsNullOrWhiteSpace(country) && !string.Equals(country, "ALL", StringComparison.OrdinalIgnoreCase);
+        bool hasGenre = !string.IsNullOrWhiteSpace(genre) && !string.Equals(genre, "ALL", StringComparison.OrdinalIgnoreCase);
 
         try
         {
@@ -154,6 +162,10 @@ public class AniListService : IAniListService
             {
                 var countryUpper = country!.ToUpper();
                 queryable = queryable.Where(a => a.CountryOfOrigin != null && a.CountryOfOrigin.ToUpper() == countryUpper);
+            }
+            if (hasGenre)
+            {
+                queryable = queryable.Where(a => a.Genres.Contains(genre!));
             }
             if (is3D.HasValue)
             {

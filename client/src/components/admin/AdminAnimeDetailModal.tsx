@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import type { Anime } from '../../types/anime';
 import { formatAnimeStatus } from '../../utils/status';
 import { X, ExternalLink, Star, Eye, Calendar, Film, Play, Info } from 'lucide-react';
@@ -69,15 +70,13 @@ export const AdminAnimeDetailModal: React.FC<AdminAnimeDetailModalProps> = ({
                   className="w-full h-full object-cover"
                 />
               </div>
-              <a
-                href={`/anime/${anime.id}`}
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                to={`/anime/${anime.id}`}
                 className="mt-3 w-44 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-center flex items-center justify-center space-x-1.5 transition shadow-md"
               >
                 <span>Xem Trang Phim</span>
                 <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              </Link>
             </div>
 
             {/* Right Details Grid */}

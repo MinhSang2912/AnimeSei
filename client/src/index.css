@@ -19,13 +19,27 @@ body {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #0f172a;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* Toast Custom Styling & Scaling */
+[data-toaster-container] [role="status"] {
+  gap: 12px;
+}
+
+[data-toaster-container] [role="status"] > div:first-child {
+  transform: scale(1.35);
+  margin-left: 2px;
+  margin-right: 4px;
 }

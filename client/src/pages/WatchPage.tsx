@@ -212,14 +212,6 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
                 <Server className="w-3.5 h-3.5 text-purple-400" />
                 <span className="hidden sm:inline">Máy chủ:</span>
               </span>
-              {currentEpisodeData?.hlsUrl && (
-                <button
-                  onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, serverName: 'AniWatch HLS Server (No Ads)' } : null)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('AniWatch') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-                >
-                  ⚡ AniWatch HLS (No Ads)
-                </button>
-              )}
               <button
                 onClick={() => {
                   const isMovie = anime?.format === 'MOVIE';

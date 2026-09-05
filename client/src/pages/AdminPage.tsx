@@ -17,14 +17,19 @@ export const AdminPage: React.FC = () => {
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Stats & Users Data
+  // Stats, Users, Badges & Borders Data
   const [stats, setStats] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [borders, setBorders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Anime Tab States
   const [animeList, setAnimeList] = useState<Anime[]>([]);
   const [animeSearch, setAnimeSearch] = useState('');
+  const [animeFormat, setAnimeFormat] = useState('ALL');
+  const [animeCountry, setAnimeCountry] = useState('ALL');
+  const [animeGenre, setAnimeGenre] = useState('ALL');
   const [animePage, setAnimePage] = useState(1);
   const [animeTotal, setAnimeTotal] = useState(0);
   const [animeLastPage, setAnimeLastPage] = useState(1);
@@ -68,20 +73,24 @@ export const AdminPage: React.FC = () => {
     };
   }, [isResizing]);
 
-  // Fetch Dashboard Stats & Users on mount
+  // Fetch Dashboard Stats, Users, Badges & Borders on mount
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [statsRes, usersRes] = await Promise.all([
+        const [statsRes, usersRes, badgesRes, bordersRes] = await Promise.all([
           api.get<ApiResponse<any>>('/admin/stats'),
           api.get<ApiResponse<any[]>>('/admin/users'),
+          api.get<ApiResponse<any[]>>('/admin/badges'),
+          api.get<ApiResponse<any[]>>('/admin/borders'),
         ]);
 
         if (statsRes.data.success) setStats(statsRes.data.data);
         if (usersRes.data.success) setUsers(usersRes.data.data);
+        if (badgesRes.data.success) setBadges(badgesRes.data.data);
+        if (bordersRes.data.success) setBorders(bordersRes.data.data);
       } catch (err) {
-        console.error('Error fetching admin stats/users', err);
+        console.error('Error fetching admin stats/users/badges/borders', err);
       } finally {
         setLoading(false);
       }
@@ -90,14 +99,19 @@ export const AdminPage: React.FC = () => {
     fetchData();
   }, []);
 
-  // Fetch Anime List when switching to 'anime' tab or when search/page changes
+  // Fetch Anime List when switching to 'anime' tab or when search/filters/page changes
   useEffect(() => {
     if (activeTab !== 'anime') return;
 
     const fetchAnime = async () => {
       setAnimeLoading(true);
       try {
-        const endpoint = `/admin/anime?page=${animePage}&perPage=12${animeSearch.trim() ? `&q=${encodeURIComponent(animeSearch.trim())}` : ''}`;
+        const formatQuery = animeFormat && animeFormat !== 'ALL' ? `&format=${animeFormat}` : '';
+        const countryQuery = animeCountry && animeCountry !== 'ALL' ? `&country=${animeCountry}` : '';
+        const genreQuery = animeGenre && animeGenre !== 'ALL' ? `&genre=${encodeURIComponent(animeGenre)}` : '';
+        const searchQuery = animeSearch.trim() ? `&q=${encodeURIComponent(animeSearch.trim())}` : '';
+
+        const endpoint = `/admin/anime?page=${animePage}&perPage=12${searchQuery}${formatQuery}${countryQuery}${genreQuery}`;
 
         const res = await api.get<ApiResponse<PagedResult<Anime>>>(endpoint);
         if (res.data.success && res.data.data) {
@@ -113,7 +127,7 @@ export const AdminPage: React.FC = () => {
     };
 
     fetchAnime();
-  }, [activeTab, animeSearch, animePage]);
+  }, [activeTab, animeSearch, animeFormat, animeCountry, animeGenre, animePage]);
 
   if (loading) {
     return (
@@ -158,6 +172,8 @@ export const AdminPage: React.FC = () => {
               onTabChange={setActiveTab}
               totalCachedAnime={stats?.totalCachedAnime || 0}
               totalUsers={Array.isArray(users) ? users.length : 0}
+              totalBadges={Array.isArray(badges) ? badges.length : 0}
+              totalBorders={Array.isArray(borders) ? borders.length : 0}
             />
           </div>
 
@@ -184,11 +200,29 @@ export const AdminPage: React.FC = () => {
                   setAnimeSearch(search);
                   setAnimePage(1);
                 }}
+                animeFormat={animeFormat}
+                onFormatChange={(fmt) => {
+                  setAnimeFormat(fmt);
+                  setAnimePage(1);
+                }}
+                animeCountry={animeCountry}
+                onCountryChange={(cnt) => {
+                  setAnimeCountry(cnt);
+                  setAnimePage(1);
+                }}
+                animeGenre={animeGenre}
+                onGenreChange={(gnr) => {
+                  setAnimeGenre(gnr);
+                  setAnimePage(1);
+                }}
                 animePage={animePage}
                 onPageChange={setAnimePage}
                 animeTotal={animeTotal}
                 animeLastPage={animeLastPage}
                 animeLoading={animeLoading}
+                onAnimeUpdated={(updated) => {
+                  setAnimeList((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+                }}
               />
             )}
 

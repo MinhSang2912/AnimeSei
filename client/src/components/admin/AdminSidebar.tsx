@@ -8,6 +8,8 @@ interface AdminSidebarProps {
   onTabChange: (tab: AdminTabType) => void;
   totalCachedAnime: number;
   totalUsers: number;
+  totalBadges?: number;
+  totalBorders?: number;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -15,6 +17,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onTabChange,
   totalCachedAnime,
   totalUsers,
+  totalBadges = 0,
+  totalBorders = 0,
 }) => {
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 shadow-xl sticky top-24 select-none">
@@ -47,7 +51,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         >
           <div className="flex items-center space-x-2.5 min-w-0 pr-1">
             <Film className="w-4 h-4 flex-shrink-0" />
-            <span className="whitespace-nowrap font-bold pr-1">Danh Sách Anime</span>
+            <span className="whitespace-nowrap font-bold pr-1">Anime</span>
           </div>
           <span
             className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${activeTab === 'anime' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
@@ -67,7 +71,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         >
           <div className="flex items-center space-x-2.5 min-w-0 pr-1">
             <Users className="w-4 h-4 flex-shrink-0" />
-            <span className="whitespace-nowrap font-bold pr-1">Danh Sách Người Dùng</span>
+            <span className="whitespace-nowrap font-bold pr-1">Người Dùng</span>
           </div>
           <span
             className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${activeTab === 'users' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
@@ -85,10 +89,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
             }`}
         >
-          <div className="flex items-center space-x-2.5 min-w-0">
+          <div className="flex items-center space-x-2.5 min-w-0 pr-1">
             <Award className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span className="whitespace-nowrap font-bold">Quản Lý Huy Hiệu</span>
+            <span className="whitespace-nowrap font-bold pr-1">Huy Hiệu</span>
           </div>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${activeTab === 'badges' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
+          >
+            {totalBadges}
+          </span>
         </button>
 
         {/* Tab 5: Borders Management */}
@@ -99,10 +109,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
             }`}
         >
-          <div className="flex items-center space-x-2.5 min-w-0">
+          <div className="flex items-center space-x-2.5 min-w-0 pr-1">
             <Shield className="w-4 h-4 text-purple-400 flex-shrink-0" />
-            <span className="whitespace-nowrap font-bold">Quản Lý Viền Khung</span>
+            <span className="whitespace-nowrap font-bold pr-1">Viền Khung</span>
           </div>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${activeTab === 'borders' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
+          >
+            {totalBorders}
+          </span>
         </button>
       </nav>
     </div>

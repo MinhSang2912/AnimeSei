@@ -41,11 +41,6 @@ builder.Services.AddHttpClient<IAniListService, AniListService>(client =>
     client.DefaultRequestHeaders.Add("User-Agent", "AnimeSei/1.0");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
-builder.Services.AddHttpClient<IAniWatchApiService, AniWatchApiService>(client =>
-{
-    client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-});
 builder.Services.AddHttpClient<IEpisodeService, EpisodeService>(client =>
 {
     client.DefaultRequestHeaders.Add("User-Agent", "AnimeSei/1.0");

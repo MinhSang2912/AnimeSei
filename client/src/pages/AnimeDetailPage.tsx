@@ -165,14 +165,6 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
             <div className="w-full mt-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-300 rounded-xl font-bold text-xs text-center">
               <span>{anime.currentEpisodes != null ? `Số tập: ${anime.currentEpisodes}${anime.episodes ? `/${anime.episodes}` : ''} Tập` : anime.episodes ? `Tổng số: ${anime.episodes} Tập` : 'Phim Đang Cập Nhật'}</span>
             </div>
-
-            <Link
-              to={`/watch/${anime.id}?ep=1`}
-              className="w-full mt-3 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-sm text-center shadow-lg shadow-purple-600/30 flex items-center justify-center space-x-2 transition cursor-pointer"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              <span>Xem Phim Ngay</span>
-            </Link>
           </div>
 
           {/* Right Column: Details, Trailer & Episodes */}
@@ -261,13 +253,12 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
                   ) : (
                     <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
                       {Array.from({ length: releasedCount }, (_, i) => i + 1).map((ep) => (
-                        <Link
+                        <div
                           key={ep}
-                          to={`/watch/${anime.id}?ep=${ep}`}
-                          className="py-2 px-3 bg-slate-900/80 hover:bg-purple-600 hover:text-white border border-slate-800 text-slate-300 rounded-xl text-center font-bold text-xs shadow-sm transition cursor-pointer"
+                          className="py-2 px-3 bg-slate-900/80 border border-slate-800 text-slate-300 rounded-xl text-center font-bold text-xs shadow-sm select-none"
                         >
                           Tập {ep}
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   )}
