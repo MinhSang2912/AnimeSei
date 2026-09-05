@@ -39,7 +39,8 @@ public class AniListService : IAniListService
             var dbContext = scope.ServiceProvider.GetRequiredService<IAnimeSeiDbContext>();
             var todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
             var queryable = dbContext.AnimeCaches
-                .Where(a => a.Status != "NOT_YET_RELEASED" && (a.StartDate == null || string.Compare(a.StartDate, todayStr) <= 0));
+                .Where(a => a.Status != "NOT_YET_RELEASED" && a.Status != "CANCELLED" && (a.StartDate == null || string.Compare(a.StartDate, todayStr) <= 0))
+                .Where(a => !a.Genres.Contains("Hentai") && (a.Format == null || a.Format.ToUpper() != "MUSIC"));
 
             if (hasFormat)
             {
@@ -54,6 +55,21 @@ public class AniListService : IAniListService
             if (is3D.HasValue)
             {
                 queryable = queryable.Where(a => a.Is3D == is3D.Value);
+            }
+
+            // Backfill / fix missing or future LastAiredAt in DB before running SQL queries
+            var nowUtc = DateTime.UtcNow;
+            var needsFixInDb = await dbContext.AnimeCaches
+                .Where(a => a.LastAiredAt == null || a.LastAiredAt > nowUtc)
+                .ToListAsync(cancellationToken);
+
+            if (needsFixInDb.Count > 0)
+            {
+                foreach (var a in needsFixInDb)
+                {
+                    EnsureLastAiredAt(a);
+                }
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
 
             int totalCount = await queryable.CountAsync(cancellationToken);
@@ -73,11 +89,15 @@ public class AniListService : IAniListService
             int safePage = Math.Max(1, Math.Min(page, exactLastPage));
 
             var items = await queryable
-                .OrderByDescending(a => a.StartDate)
+                .OrderByDescending(a => a.LastAiredAt)
+                .ThenByDescending(a => a.EndDate)
+                .ThenByDescending(a => a.StartDate)
                 .ThenByDescending(a => a.Id)
                 .Skip((safePage - 1) * perPage)
                 .Take(perPage)
                 .ToListAsync(cancellationToken);
+
+            items.ForEach(EnsureLastAiredAt);
 
             return new PagedResult<AnimeCache>
             {
@@ -113,7 +133,8 @@ public class AniListService : IAniListService
             var dbContext = scope.ServiceProvider.GetRequiredService<IAnimeSeiDbContext>();
             var todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
             var queryable = dbContext.AnimeCaches
-                .Where(a => a.Status != "NOT_YET_RELEASED" && (a.StartDate == null || string.Compare(a.StartDate, todayStr) <= 0));
+                .Where(a => a.Status != "NOT_YET_RELEASED" && a.Status != "CANCELLED" && (a.StartDate == null || string.Compare(a.StartDate, todayStr) <= 0))
+                .Where(a => !a.Genres.Contains("Hentai") && (a.Format == null || a.Format.ToUpper() != "MUSIC"));
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -139,6 +160,21 @@ public class AniListService : IAniListService
                 queryable = queryable.Where(a => a.Is3D == is3D.Value);
             }
 
+            // Backfill / fix missing or future LastAiredAt in DB before running SQL queries
+            var nowUtc = DateTime.UtcNow;
+            var needsFixInDb = await dbContext.AnimeCaches
+                .Where(a => a.LastAiredAt == null || a.LastAiredAt > nowUtc)
+                .ToListAsync(cancellationToken);
+
+            if (needsFixInDb.Count > 0)
+            {
+                foreach (var a in needsFixInDb)
+                {
+                    EnsureLastAiredAt(a);
+                }
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
             int totalCount = await queryable.CountAsync(cancellationToken);
             if (totalCount == 0)
             {
@@ -156,11 +192,15 @@ public class AniListService : IAniListService
             int safePage = Math.Max(1, Math.Min(page, exactLastPage));
 
             var items = await queryable
-                .OrderByDescending(a => a.StartDate)
+                .OrderByDescending(a => a.LastAiredAt)
+                .ThenByDescending(a => a.EndDate)
+                .ThenByDescending(a => a.StartDate)
                 .ThenByDescending(a => a.Id)
                 .Skip((safePage - 1) * perPage)
                 .Take(perPage)
                 .ToListAsync(cancellationToken);
+
+            items.ForEach(EnsureLastAiredAt);
 
             return new PagedResult<AnimeCache>
             {
@@ -186,30 +226,23 @@ public class AniListService : IAniListService
             var dbContext = scope.ServiceProvider.GetRequiredService<IAnimeSeiDbContext>();
             var existing = await dbContext.AnimeCaches.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
             
-            if (existing != null && existing.Relations != null && existing.Relations.Count > 0)
+            if (existing != null)
             {
+                EnsureLastAiredAt(existing);
                 return existing;
             }
 
-            // If existing is missing relations or not in DB, fetch from AniList API directly
+            // Only fetch from AniList API if not found in database at all
             var fetched = await FetchAnimeFromAniListByIdAsync(id, cancellationToken);
             if (fetched != null)
             {
-                if (existing == null)
-                {
-                    dbContext.AnimeCaches.Add(fetched);
-                }
-                else
-                {
-                    existing.Relations = fetched.Relations;
-                    if (string.IsNullOrEmpty(existing.CoverImage)) existing.CoverImage = fetched.CoverImage;
-                    existing.LastSyncedAt = DateTime.UtcNow;
-                }
+                EnsureLastAiredAt(fetched);
+                dbContext.AnimeCaches.Add(fetched);
                 await dbContext.SaveChangesAsync(cancellationToken);
-                return fetched ?? existing;
+                return fetched;
             }
 
-            return existing;
+            return null;
         }
         catch (Exception ex)
         {
@@ -237,11 +270,20 @@ public class AniListService : IAniListService
                 }
                 bannerImage
                 episodes
+                nextAiringEpisode {
+                  episode
+                  airingAt
+                }
                 status
                 format
                 countryOfOrigin
                 seasonYear
                 startDate {
+                  year
+                  month
+                  day
+                }
+                endDate {
                   year
                   month
                   day
@@ -300,34 +342,32 @@ public class AniListService : IAniListService
         return null;
     }
 
+    private static void EnsureLastAiredAt(AnimeCache anime)
+    {
+        if (!anime.LastAiredAt.HasValue)
+        {
+            if (!string.IsNullOrEmpty(anime.EndDate) && DateTime.TryParse(anime.EndDate, out var ed))
+            {
+                anime.LastAiredAt = DateTime.SpecifyKind(ed, DateTimeKind.Utc);
+            }
+            else if (!string.IsNullOrEmpty(anime.StartDate) && DateTime.TryParse(anime.StartDate, out var sd))
+            {
+                anime.LastAiredAt = DateTime.SpecifyKind(sd, DateTimeKind.Utc);
+            }
+            else if (anime.SeasonYear.HasValue)
+            {
+                anime.LastAiredAt = new DateTime(anime.SeasonYear.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            }
+        }
+
+        while (anime.LastAiredAt.HasValue && anime.LastAiredAt.Value > DateTime.UtcNow)
+        {
+            anime.LastAiredAt = anime.LastAiredAt.Value.AddDays(-7);
+        }
+    }
+
     private static bool IsSensitiveOrAdult(JsonElement media)
     {
-        if (media.TryGetProperty("isAdult", out var adultProp) && adultProp.ValueKind == JsonValueKind.True)
-        {
-            return true;
-        }
-
-        if (media.TryGetProperty("format", out var fmtProp) && fmtProp.ValueKind == JsonValueKind.String)
-        {
-            var fmtStr = fmtProp.GetString();
-            if (string.Equals(fmtStr, "MUSIC", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        if (media.TryGetProperty("genres", out var gArray) && gArray.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var g in gArray.EnumerateArray())
-            {
-                var genreStr = g.GetString()?.Trim();
-                if (string.Equals(genreStr, "Hentai", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-        }
-
         return false;
     }
 
@@ -445,6 +485,81 @@ public class AniListService : IAniListService
             }
         }
 
+        int? totalEpisodes = media.TryGetProperty("episodes", out var ep) && ep.ValueKind != JsonValueKind.Null ? ep.GetInt32() : null;
+        int? currentEpisodes = totalEpisodes;
+
+        if (media.TryGetProperty("nextAiringEpisode", out var nae) && nae.ValueKind == JsonValueKind.Object)
+        {
+            if (nae.TryGetProperty("episode", out var naeEp) && naeEp.ValueKind != JsonValueKind.Null)
+            {
+                // Current released episode is (Next Episode Number - 1)
+                currentEpisodes = Math.Max(0, naeEp.GetInt32() - 1);
+            }
+        }
+        else if (media.TryGetProperty("status", out var stCheck) && stCheck.ValueKind == JsonValueKind.String)
+        {
+            var statusStr = stCheck.GetString();
+            if (string.Equals(statusStr, "NOT_YET_RELEASED", StringComparison.OrdinalIgnoreCase))
+            {
+                currentEpisodes = 0;
+            }
+        }
+
+        string? endDateStr = null;
+        DateTime? lastAiredAt = null;
+        if (media.TryGetProperty("endDate", out var ed) && ed.ValueKind == JsonValueKind.Object)
+        {
+            int? year = ed.TryGetProperty("year", out var y) && y.ValueKind != JsonValueKind.Null ? y.GetInt32() : null;
+            int? month = ed.TryGetProperty("month", out var m) && m.ValueKind != JsonValueKind.Null ? m.GetInt32() : null;
+            int? day = ed.TryGetProperty("day", out var edd) && edd.ValueKind != JsonValueKind.Null ? edd.GetInt32() : null;
+
+            if (day.HasValue && month.HasValue && year.HasValue)
+            {
+                endDateStr = $"{year.Value:D4}-{month.Value:D2}-{day.Value:D2}";
+            }
+            else if (month.HasValue && year.HasValue)
+            {
+                endDateStr = $"{year.Value:D4}-{month.Value:D2}-01";
+            }
+            else if (year.HasValue)
+            {
+                endDateStr = $"{year.Value:D4}-01-01";
+            }
+        }
+
+        // Priority 1: Next episode / new episode air time
+        if (media.TryGetProperty("nextAiringEpisode", out var naeObj) && naeObj.ValueKind == JsonValueKind.Object)
+        {
+            if (naeObj.TryGetProperty("airingAt", out var aAt) && aAt.ValueKind != JsonValueKind.Null)
+            {
+                long unixSeconds = aAt.GetInt64();
+                lastAiredAt = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
+            }
+        }
+
+        // Priority 2: Finished date (EndDate)
+        if (!lastAiredAt.HasValue && !string.IsNullOrEmpty(endDateStr) && DateTime.TryParse(endDateStr, out var parsedEndDate))
+        {
+            lastAiredAt = DateTime.SpecifyKind(parsedEndDate, DateTimeKind.Utc);
+        }
+
+        // Priority 3: Start date (StartDate)
+        if (!lastAiredAt.HasValue && !string.IsNullOrEmpty(startDateStr) && DateTime.TryParse(startDateStr, out var parsedStartDate))
+        {
+            lastAiredAt = DateTime.SpecifyKind(parsedStartDate, DateTimeKind.Utc);
+        }
+
+        // Priority 4: SeasonYear
+        if (!lastAiredAt.HasValue && seasonYear.HasValue)
+        {
+            lastAiredAt = new DateTime(seasonYear.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        }
+
+        while (lastAiredAt.HasValue && lastAiredAt.Value > DateTime.UtcNow)
+        {
+            lastAiredAt = lastAiredAt.Value.AddDays(-7);
+        }
+
         return new AnimeCache
         {
             Id = media.GetProperty("id").GetInt32(),
@@ -454,7 +569,8 @@ public class AniListService : IAniListService
             Description = media.TryGetProperty("description", out var desc) ? desc.GetString() ?? "" : "",
             CoverImage = cover,
             BannerImage = banner,
-            Episodes = media.TryGetProperty("episodes", out var ep) && ep.ValueKind != JsonValueKind.Null ? ep.GetInt32() : null,
+            Episodes = totalEpisodes,
+            CurrentEpisodes = currentEpisodes,
             Status = media.TryGetProperty("status", out var st) ? st.GetString() ?? "" : "",
             Format = format,
             CountryOfOrigin = countryOfOrigin,
@@ -463,6 +579,8 @@ public class AniListService : IAniListService
             AverageScore = media.TryGetProperty("averageScore", out var sc) && sc.ValueKind != JsonValueKind.Null ? sc.GetInt32() : null,
             SeasonYear = seasonYear,
             StartDate = startDateStr,
+            EndDate = endDateStr,
+            LastAiredAt = lastAiredAt,
             TrailerSite = trailerSite,
             TrailerId = trailerId,
             Relations = relations,
@@ -472,17 +590,16 @@ public class AniListService : IAniListService
 
     public async Task<int> SyncSeasonalAnimeAsync(int startYear = 2000, int endYear = 2026, CancellationToken cancellationToken = default)
     {
-        string[] seasons = new[] { "WINTER", "SPRING", "SUMMER", "FALL" };
         int totalSynced = 0;
 
         var query = @"
-        query ($page: Int, $year: Int, $season: MediaSeason) {
+        query ($page: Int, $year: Int) {
           Page(page: $page, perPage: 50) {
             pageInfo {
               currentPage
               hasNextPage
             }
-            media(seasonYear: $year, season: $season, type: ANIME, isAdult: false, genre_not_in: [""Hentai""]) {
+            media(seasonYear: $year, type: ANIME) {
               id
               title {
                 romaji
@@ -495,11 +612,20 @@ public class AniListService : IAniListService
               }
               bannerImage
               episodes
+              nextAiringEpisode {
+                episode
+                airingAt
+              }
               status
               format
               countryOfOrigin
               seasonYear
               startDate {
+                year
+                month
+                day
+              }
+              endDate {
                 year
                 month
                 day
@@ -521,245 +647,116 @@ public class AniListService : IAniListService
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<IAnimeSeiDbContext>();
 
-        _logger.LogInformation("Starting seasonal anime sync from year {StartYear} to {EndYear}", startYear, endYear);
+        _logger.LogInformation("Starting reverse yearly anime sync from year {EndYear} down to {StartYear}", endYear, startYear);
 
-        for (int year = startYear; year <= endYear; year++)
+        for (int year = endYear; year >= startYear; year--)
         {
-            foreach (var season in seasons)
+            int page = 1;
+            bool hasNextPage = true;
+
+            while (hasNextPage && !cancellationToken.IsCancellationRequested)
             {
-                int page = 1;
-                bool hasNextPage = true;
+                var variables = new { page, year };
+                var requestBody = new { query, variables };
 
-                while (hasNextPage && !cancellationToken.IsCancellationRequested)
+                try
                 {
-                    var variables = new { page, year, season };
-                    var requestBody = new { query, variables };
+                    var response = await _httpClient.PostAsJsonAsync("https://graphql.anilist.co", requestBody, cancellationToken);
+                    if (!response.IsSuccessStatusCode) break;
 
-                    try
+                    var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                    using var doc = JsonDocument.Parse(json);
+
+                    if (doc.RootElement.TryGetProperty("data", out var data) &&
+                        data.TryGetProperty("Page", out var pageObj))
                     {
-                        var response = await _httpClient.PostAsJsonAsync("https://graphql.anilist.co", requestBody, cancellationToken);
-                        if (!response.IsSuccessStatusCode) break;
-
-                        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-                        using var doc = JsonDocument.Parse(json);
-
-                        if (doc.RootElement.TryGetProperty("data", out var data) &&
-                            data.TryGetProperty("Page", out var pageObj))
+                        if (pageObj.TryGetProperty("pageInfo", out var pageInfo) &&
+                            pageInfo.TryGetProperty("hasNextPage", out var hnp))
                         {
-                            if (pageObj.TryGetProperty("pageInfo", out var pageInfo) &&
-                                pageInfo.TryGetProperty("hasNextPage", out var hnp))
-                            {
-                                hasNextPage = hnp.GetBoolean();
-                            }
-                            else
-                            {
-                                hasNextPage = false;
-                            }
+                            hasNextPage = hnp.GetBoolean();
+                        }
+                        else
+                        {
+                            hasNextPage = false;
+                        }
 
-                            if (pageObj.TryGetProperty("media", out var mediaArray))
+                        if (pageObj.TryGetProperty("media", out var mediaArray))
+                        {
+                            int pageSyncedCount = 0;
+                            var sampleTitles = new List<string>();
+
+                            foreach (var media in mediaArray.EnumerateArray())
                             {
-                                foreach (var media in mediaArray.EnumerateArray())
+                                if (!IsSensitiveOrAdult(media))
                                 {
-                                    if (!IsSensitiveOrAdult(media))
+                                    var item = MapMediaToAnimeCache(media);
+                                    if (!string.IsNullOrEmpty(item.TitleRomaji) && sampleTitles.Count < 3)
                                     {
-                                        var item = MapMediaToAnimeCache(media);
-                                        var existing = await dbContext.AnimeCaches.FirstOrDefaultAsync(a => a.Id == item.Id, cancellationToken);
-                                        if (existing == null)
-                                        {
-                                            dbContext.AnimeCaches.Add(item);
-                                        }
-                                        else
-                                        {
-                                            existing.TitleRomaji = item.TitleRomaji;
-                                            existing.TitleEnglish = item.TitleEnglish;
-                                            existing.TitleNative = item.TitleNative;
-                                            existing.CoverImage = item.CoverImage;
-                                            existing.BannerImage = item.BannerImage;
-                                            existing.Episodes = item.Episodes;
-                                            existing.Status = item.Status;
-                                            existing.Format = item.Format;
-                                            existing.CountryOfOrigin = item.CountryOfOrigin;
-                                            existing.Is3D = item.Is3D;
-                                            existing.Genres = item.Genres;
-                                            existing.AverageScore = item.AverageScore;
-                                            existing.SeasonYear = item.SeasonYear;
-                                            existing.StartDate = item.StartDate;
-                                            existing.TrailerSite = item.TrailerSite;
-                                            existing.TrailerId = item.TrailerId;
-                                            existing.LastSyncedAt = DateTime.UtcNow;
-                                        }
-                                        totalSynced++;
+                                        sampleTitles.Add(item.TitleRomaji);
                                     }
+
+                                    var existing = await dbContext.AnimeCaches.FirstOrDefaultAsync(a => a.Id == item.Id, cancellationToken);
+                                    if (existing == null)
+                                    {
+                                        dbContext.AnimeCaches.Add(item);
+                                    }
+                                    else
+                                    {
+                                        existing.TitleRomaji = item.TitleRomaji;
+                                        existing.TitleEnglish = item.TitleEnglish;
+                                        existing.TitleNative = item.TitleNative;
+                                        existing.CoverImage = item.CoverImage;
+                                        existing.BannerImage = item.BannerImage;
+                                        existing.Episodes = item.Episodes;
+                                        existing.CurrentEpisodes = item.CurrentEpisodes;
+                                        existing.Status = item.Status;
+                                        existing.Format = item.Format;
+                                        existing.CountryOfOrigin = item.CountryOfOrigin;
+                                        existing.Is3D = item.Is3D;
+                                        existing.Genres = item.Genres;
+                                        existing.AverageScore = item.AverageScore;
+                                        existing.SeasonYear = item.SeasonYear;
+                                        existing.StartDate = item.StartDate;
+                                        existing.EndDate = item.EndDate;
+                                        existing.LastAiredAt = item.LastAiredAt;
+                                        existing.TrailerSite = item.TrailerSite;
+                                        existing.TrailerId = item.TrailerId;
+                                        existing.LastSyncedAt = DateTime.UtcNow;
+                                    }
+                                    pageSyncedCount++;
+                                    totalSynced++;
                                 }
-                                await dbContext.SaveChangesAsync(cancellationToken);
+                            }
+                            await dbContext.SaveChangesAsync(cancellationToken);
+
+                            if (pageSyncedCount > 0)
+                            {
+                                _logger.LogInformation("🔄 [AniList Scraper] Synced Year {Year} (Page {Page}): {Count} items. Total so far: {TotalSynced}. Anime sample: [{Sample}]",
+                                    year, page, pageSyncedCount, totalSynced, string.Join(" | ", sampleTitles));
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error syncing anime for year {Year}, season {Season}, page {Page}", year, season, page);
-                        break;
-                    }
-
-                    page++;
-                    // Respect AniList API rate limits (90 req/min)
-                    await Task.Delay(400, cancellationToken);
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error syncing anime for year {Year}, page {Page}", year, page);
+                    break;
+                }
+
+                page++;
+                // Respect AniList API rate limits (90 req/min)
+                await Task.Delay(400, cancellationToken);
             }
         }
 
-        _logger.LogInformation("Completed seasonal anime sync. Total items synced: {TotalSynced}", totalSynced);
+        _logger.LogInformation("Completed yearly anime sync. Total items synced: {TotalSynced}", totalSynced);
         return totalSynced;
     }
 
     public async Task<int> SyncIncrementalAnimeAsync(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<IAnimeSeiDbContext>();
-
-            // Find the latest StartDate currently in DB
-            var latestAnime = await dbContext.AnimeCaches
-                .Where(a => a.StartDate != null && a.StartDate.Length == 10)
-                .OrderByDescending(a => a.StartDate)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            int startDateGreater = 20000101; // default if DB empty
-
-            if (latestAnime != null && !string.IsNullOrEmpty(latestAnime.StartDate))
-            {
-                var s = latestAnime.StartDate.Trim();
-                if (s.Contains("/"))
-                {
-                    var parts = s.Split('/');
-                    if (parts.Length == 3 && int.TryParse(parts[0], out int d) && int.TryParse(parts[1], out int m) && int.TryParse(parts[2], out int y))
-                    {
-                        startDateGreater = y * 10000 + m * 100 + d;
-                    }
-                }
-                else if (s.Contains("-"))
-                {
-                    var parts = s.Split('-');
-                    if (parts.Length == 3 && int.TryParse(parts[0], out int y) && int.TryParse(parts[1], out int m) && int.TryParse(parts[2], out int d))
-                    {
-                        startDateGreater = y * 10000 + m * 100 + d;
-                    }
-                }
-            }
-
-            var query = $@"
-            query {{
-              Page(page: 1, perPage: 10) {{
-                media(type: ANIME, startDate_greater: {startDateGreater}, sort: [START_DATE]) {{
-                  id
-                  title {{
-                    romaji
-                    english
-                    native
-                  }}
-                  description
-                  coverImage {{
-                    extraLarge
-                  }}
-                  bannerImage
-                  episodes
-                  status
-                  format
-                  countryOfOrigin
-                  seasonYear
-                  startDate {{
-                    year
-                    month
-                    day
-                  }}
-                  genres
-                  tags {{
-                    name
-                  }}
-                  isAdult
-                  averageScore
-                  trailer {{
-                    id
-                    site
-                  }}
-                }}
-              }}
-            }}";
-
-            var requestBody = new { query };
-
-            var response = await _httpClient.PostAsJsonAsync("https://graphql.anilist.co", requestBody, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogWarning("AniList API returned status {StatusCode} during incremental sync: {ErrorContent}", response.StatusCode, errContent);
-                return 0;
-            }
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(json);
-
-            int addedCount = 0;
-            var loadedTitles = new List<string>();
-
-            if (doc.RootElement.TryGetProperty("data", out var dataObj) &&
-                dataObj.TryGetProperty("Page", out var pageObj) &&
-                pageObj.TryGetProperty("media", out var mediaArray))
-            {
-                foreach (var mediaElem in mediaArray.EnumerateArray())
-                {
-                    if (!IsSensitiveOrAdult(mediaElem))
-                    {
-                        var item = MapMediaToAnimeCache(mediaElem);
-                        if (!string.IsNullOrEmpty(item.TitleRomaji))
-                        {
-                            loadedTitles.Add(item.TitleRomaji);
-                        }
-
-                        var existing = await dbContext.AnimeCaches.FirstOrDefaultAsync(a => a.Id == item.Id, cancellationToken);
-                        if (existing == null)
-                        {
-                            dbContext.AnimeCaches.Add(item);
-                            addedCount++;
-                        }
-                        else
-                        {
-                            existing.TitleRomaji = item.TitleRomaji;
-                            existing.TitleEnglish = item.TitleEnglish;
-                            existing.TitleNative = item.TitleNative;
-                            existing.CoverImage = item.CoverImage;
-                            existing.BannerImage = item.BannerImage;
-                            existing.Episodes = item.Episodes;
-                            existing.Status = item.Status;
-                            existing.Format = item.Format;
-                            existing.CountryOfOrigin = item.CountryOfOrigin;
-                            existing.Is3D = item.Is3D;
-                            existing.Genres = item.Genres;
-                            existing.AverageScore = item.AverageScore;
-                            existing.SeasonYear = item.SeasonYear;
-                            existing.StartDate = item.StartDate;
-                            existing.TrailerSite = item.TrailerSite;
-                            existing.TrailerId = item.TrailerId;
-                            existing.Relations = item.Relations;
-                            existing.LastSyncedAt = DateTime.UtcNow;
-                        }
-                    }
-                }
-                if (addedCount > 0)
-                {
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                }
-            }
-
-            var titlesSummary = loadedTitles.Count > 0 ? string.Join(" | ", loadedTitles) : "None";
-            _logger.LogInformation("🔄 Incremental sync completed. Fetched {Count} anime from AniList (after date {StartDateGreater}): [{TitlesSummary}]. {AddedCount} new anime saved into Database.", loadedTitles.Count, startDateGreater, titlesSummary, addedCount);
-            return addedCount;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error performing incremental anime sync from AniList");
-            return 0;
-        }
+        // Background sync fetches all anime from year 2000 to current year without filtering/max date comparison
+        int currentYear = DateTime.UtcNow.Year;
+        return await SyncSeasonalAnimeAsync(2000, DateTime.UtcNow.Year+1, cancellationToken);
     }
 }

@@ -56,9 +56,11 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
         )}
 
         {/* Episode badge */}
-        {anime.episodes && (
+        {(anime.currentEpisodes != null || anime.episodes != null) && (
           <div className="absolute bottom-2 left-2 bg-purple-900/80 backdrop-blur-md px-2 py-0.5 rounded text-[11px] font-medium text-purple-200">
-            {anime.episodes} tập
+            {anime.currentEpisodes != null
+              ? `${anime.currentEpisodes}${anime.episodes ? `/${anime.episodes}` : ''}`
+              : anime.episodes} tập
           </div>
         )}
 

@@ -179,7 +179,6 @@ export const AdminBadgesTab: React.FC = () => {
               <tr>
                 <th className="px-5 py-3">Hiển Thị</th>
                 <th className="px-5 py-3">Tên Huy Hiệu</th>
-                <th className="px-5 py-3">Icon Mặc Định</th>
                 <th className="px-5 py-3">Mô Tả</th>
                 <th className="px-5 py-3">Điểm Đổi</th>
                 <th className="px-5 py-3 text-right">Thao Tác</th>
@@ -198,7 +197,6 @@ export const AdminBadgesTab: React.FC = () => {
                     )}
                   </td>
                   <td className="px-5 py-3 font-bold text-white">{b.name}</td>
-                  <td className="px-5 py-3 text-slate-400 font-mono text-[11px]">{b.iconUrl || '—'}</td>
                   <td className="px-5 py-3 text-slate-400 max-w-xs truncate">{b.description || '—'}</td>
                   <td className="px-5 py-3 font-bold text-amber-400">{b.requiredPoints} điểm</td>
                   <td className="px-5 py-3 text-right">

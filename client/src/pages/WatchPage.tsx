@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import type { Anime, ApiResponse } from '../types/anime';
-import { ArrowLeft, Award, Loader2, MessageSquare, Send, Tv, ChevronRight } from 'lucide-react';
+import type { Anime, Episode, ApiResponse } from '../types/anime';
+import { VideoPlayer } from '../components/VideoPlayer';
+import { ArrowLeft, Award, Loader2, MessageSquare, Send, Tv, ChevronRight, Server } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface WatchPageProps {
@@ -19,7 +20,8 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
 
   const [anime, setAnime] = useState<Anime | null>(null);
   const [loading, setLoading] = useState(true);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [currentEpisodeData, setCurrentEpisodeData] = useState<Episode | null>(null);
   const [fetchingStream, setFetchingStream] = useState(false);
 
   // Watch timer state
@@ -33,14 +35,21 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
 
   const timerRef = useRef<any>(null);
 
-  // 1. Fetch Anime detail & comments
+  // 1. Fetch Anime detail, list of episodes & comments
   useEffect(() => {
-    const fetchDetail = async () => {
+    const fetchDetailAndEpisodes = async () => {
       setLoading(true);
       try {
-        const res = await api.get<ApiResponse<Anime>>(`/anime/${id}`);
-        if (res.data.success) {
-          setAnime(res.data.data);
+        const [animeRes, epListRes] = await Promise.all([
+          api.get<ApiResponse<Anime>>(`/anime/${id}`),
+          api.get<ApiResponse<Episode[]>>(`/episode/anime/${id}`)
+        ]);
+
+        if (animeRes.data.success) {
+          setAnime(animeRes.data.data);
+        }
+        if (epListRes.data.success) {
+          setEpisodes(epListRes.data.data);
         }
       } catch (err) {
         console.error(err);
@@ -62,58 +71,45 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
     };
 
     if (id) {
-      fetchDetail();
+      fetchDetailAndEpisodes();
       fetchComments();
     }
   }, [id]);
 
-  // 2. Fetch Consumet API stream source for current episode
+  // 2. Fetch specific Episode stream data when currentEp or id changes
   useEffect(() => {
-    if (!anime) return;
+    if (!id) return;
 
-    const fetchConsumetStream = async () => {
+    const fetchEpisodeStream = async () => {
       setFetchingStream(true);
       try {
-        // Try searching Consumet API for stream info
-        const titleQuery = encodeURIComponent(anime.titleEnglish || anime.titleRomaji);
-        const searchRes = await fetch(`https://api.consumet.org/anime/gogoanime/${titleQuery}`);
-        
-        if (searchRes.ok) {
-          const searchData = await searchRes.json();
-          if (searchData.results && searchData.results.length > 0) {
-            const animeId = searchData.results[0].id;
-            const episodeId = `${animeId}-episode-${currentEp}`;
-            const watchRes = await fetch(`https://api.consumet.org/anime/gogoanime/watch/${episodeId}`);
-            if (watchRes.ok) {
-              const watchData = await watchRes.json();
-              if (watchData.headers?.Referer) {
-                // If direct iframe/embed available
-                const defaultSource = watchData.sources?.find((s: any) => s.isM3U8 || s.quality === 'default' || s.quality === '1080p') || watchData.sources?.[0];
-                if (defaultSource) {
-                  setStreamUrl(defaultSource.url);
-                  return;
-                }
-              }
-            }
+        const res = await api.get<ApiResponse<Episode>>(`/episode/anime/${id}/episodes/${currentEp}`);
+        if (res.data.success) {
+          const epData = res.data.data;
+          if (!epData.embedUrl && !epData.hlsUrl && anime) {
+            const isMovie = anime.format === 'MOVIE';
+            epData.embedUrl = isMovie
+              ? `https://vsembed.ru/embed/movie/${anime.id}?ds_lang=vi,en&autonext=1`
+              : `https://vsembed.ru/embed/tv/${anime.id}/1/${currentEp}?ds_lang=vi,en&autonext=1`;
+            epData.serverName = 'VidSrc VIP (vsembed.ru)';
           }
+          setCurrentEpisodeData(epData);
         }
       } catch (e) {
-        console.log('Consumet API fallback to trailer/embed player:', e);
+        console.error('Error fetching stream endpoint:', e);
       } finally {
         setFetchingStream(false);
       }
-      setStreamUrl(null);
     };
 
-    fetchConsumetStream();
-  }, [anime, currentEp]);
+    fetchEpisodeStream();
+  }, [id, currentEp, anime]);
 
   // 3. Watch Timer Tracker for Points
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setWatchSeconds((prev) => {
         const next = prev + 1;
-        // 19 minutes = 1140 seconds
         if (next >= 1140 && !pointAwarded && user) {
           setPointAwarded(true);
           toast.success('🎉 Bạn đã xem phim 19 phút và nhận được +1 Điểm thưởng!', {
@@ -181,7 +177,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
     );
   }
 
-  const totalEpisodes = anime.episodes || 12;
+  const totalEpisodesCount = anime.episodes || episodes.length || 12;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-20 pt-4">
@@ -209,61 +205,100 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
             </div>
           </div>
 
-          {/* Reward Points Timer */}
-          <div className="text-xs text-slate-300 bg-slate-900 border border-purple-500/30 px-3.5 py-1.5 rounded-full flex items-center space-x-1.5 shadow-inner">
-            <Award className="w-4 h-4 text-amber-400 animate-pulse" />
-            <span>Tiến trình tích điểm: <strong className="text-purple-400">{Math.floor(watchSeconds / 60)}m {watchSeconds % 60}s</strong> / 19m</span>
+          {/* Server Info & Switcher & Reward Points Timer */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center space-x-1.5 text-xs bg-slate-900 border border-slate-800 p-1 rounded-xl">
+              <span className="text-slate-400 pl-2 pr-1 flex items-center space-x-1">
+                <Server className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden sm:inline">Máy chủ:</span>
+              </span>
+              {currentEpisodeData?.hlsUrl && (
+                <button
+                  onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, serverName: 'AniWatch HLS Server (No Ads)' } : null)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('AniWatch') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                >
+                  ⚡ AniWatch HLS (No Ads)
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const isMovie = anime?.format === 'MOVIE';
+                  const embed = isMovie
+                    ? `https://vsembed.ru/embed/movie/${anime?.id}?ds_lang=vi,en&autonext=1`
+                    : `https://vsembed.ru/embed/tv/${anime?.id}/1/${currentEp}?ds_lang=vi,en&autonext=1`;
+                  setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: embed, serverName: 'VidSrc VIP (vsembed.ru)' } : null);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('vsembed') || currentEpisodeData?.embedUrl?.includes('vsembed') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+              >
+                🍿 VidSrc VIP (vsembed.ru)
+              </button>
+              <button
+                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://vidsrc.me/embed/anime?anilist=${anime.id}&episode=${currentEp}`, hlsUrl: null, serverName: 'VidSrc Me' } : null)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('VidSrc Me') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+              >
+                VidSrc.me
+              </button>
+              <button
+                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://2embed.cc/embed/anime/${anime.id}/${currentEp}`, hlsUrl: null, serverName: '2Embed' } : null)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('2Embed') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+              >
+                2Embed
+              </button>
+              <button
+                onClick={() => setCurrentEpisodeData(prev => prev ? { ...prev, embedUrl: `https://vidsrc.to/embed/anime/${anime.id}/${currentEp}`, hlsUrl: null, serverName: 'VidSrc.to' } : null)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${currentEpisodeData?.serverName?.includes('VidSrc.to') ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+              >
+                VidSrc.to
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-300 bg-slate-900 border border-purple-500/30 px-3.5 py-1.5 rounded-full flex items-center space-x-1.5 shadow-inner">
+              <Award className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span>Tích điểm: <strong className="text-purple-400">{Math.floor(watchSeconds / 60)}m {watchSeconds % 60}s</strong> / 19m</span>
+            </div>
           </div>
         </div>
 
-        {/* Video Player Box */}
+        {/* Video Player Container */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl p-2 sm:p-4 mb-8">
-          <div className="aspect-video w-full bg-black rounded-xl overflow-hidden flex items-center justify-center relative border border-slate-800">
+          <div className="aspect-video w-full bg-black rounded-xl overflow-hidden relative border border-slate-800">
             {fetchingStream ? (
-              <div className="flex flex-col items-center justify-center text-slate-400">
+              <div className="flex flex-col items-center justify-center h-full text-slate-400">
                 <Loader2 className="w-8 h-8 text-purple-500 animate-spin mb-2" />
-                <p className="text-xs">Đang kết nối luồng phát Consumet API...</p>
+                <p className="text-xs">Đang tải luồng phát từ server nhúng...</p>
               </div>
-            ) : streamUrl ? (
-              <iframe
-                title={`Anime Player Episode ${currentEp}`}
-                src={streamUrl}
-                className="w-full h-full border-0"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-              />
             ) : (
-              <iframe
-                title={`Anime Player Episode ${currentEp}`}
-                src={
-                  anime.trailerId
-                    ? `https://www.youtube.com/embed/${anime.trailerId}?autoplay=1`
-                    : 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1'
-                }
-                className="w-full h-full border-0"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
+              <VideoPlayer
+                hlsUrl={currentEpisodeData?.hlsUrl}
+                embedUrl={currentEpisodeData?.embedUrl}
+                title={`${anime.titleRomaji} - Tập ${currentEp}`}
+                onEnded={() => {
+                  if (currentEp < totalEpisodesCount) {
+                    toast.success(`Tập phim đã xong. Đang chuyển sang Tập ${currentEp + 1}...`, { icon: '🍿' });
+                    setSearchParams({ ep: String(currentEp + 1) });
+                  }
+                }}
               />
             )}
           </div>
         </div>
 
-        {/* Main Content Grid: Episodes & Comments */}
+        {/* Main Content Grid: Episode Selection & Comments */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Left / Main Column: Episode Selection */}
+          {/* Left Column: Episodes List */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-white flex items-center space-x-2">
                   <Tv className="w-5 h-5 text-purple-400" />
-                  <span>Danh Sách Tập ({totalEpisodes} Tập)</span>
+                  <span>Danh Sách Tập ({totalEpisodesCount} Tập)</span>
                 </h3>
                 <span className="text-xs text-slate-400">Đang xem: Tập {currentEp}</span>
               </div>
 
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
-                {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((ep) => {
+                {Array.from({ length: totalEpisodesCount }, (_, i) => i + 1).map((ep) => {
                   const isActive = ep === currentEp;
                   return (
                     <button
@@ -282,7 +317,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
               </div>
             </div>
 
-            {/* Anime Info Brief */}
+            {/* Anime Brief Description */}
             <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-2xl">
               <h3 className="text-lg font-bold text-white mb-2">{anime.titleRomaji}</h3>
               {anime.titleEnglish && <p className="text-slate-400 text-xs mb-3">{anime.titleEnglish}</p>}
@@ -293,7 +328,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
             </div>
           </div>
 
-          {/* Right Column: Episode Comments */}
+          {/* Right Column: Comments */}
           <div className="lg:col-span-1">
             <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2">
@@ -301,7 +336,6 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
                 <span>Bình Luận ({comments.length})</span>
               </h3>
 
-              {/* Input Form */}
               <form onSubmit={handlePostComment} className="flex flex-col gap-2 mb-6">
                 <textarea
                   rows={3}
@@ -321,7 +355,6 @@ export const WatchPage: React.FC<WatchPageProps> = ({ user, onUpdatePoints }) =>
                 </button>
               </form>
 
-              {/* Comment list */}
               <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
                 {comments.length === 0 ? (
                   <p className="text-xs text-slate-500 italic">Chưa có bình luận nào.</p>

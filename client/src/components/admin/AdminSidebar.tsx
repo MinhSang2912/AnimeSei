@@ -26,11 +26,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Tab 1: Stats Overview */}
         <button
           onClick={() => onTabChange('stats')}
-          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${
-            activeTab === 'stats'
+          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${activeTab === 'stats'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold'
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <div className="flex items-center space-x-2.5 min-w-0">
             <BarChart3 className="w-4 h-4 flex-shrink-0" />
@@ -41,20 +40,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Tab 2: Anime List */}
         <button
           onClick={() => onTabChange('anime')}
-          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${
-            activeTab === 'anime'
+          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${activeTab === 'anime'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold'
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <div className="flex items-center space-x-2.5 min-w-0 pr-1">
             <Film className="w-4 h-4 flex-shrink-0" />
             <span className="whitespace-nowrap font-bold pr-1">Danh Sách Anime</span>
           </div>
           <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${
-              activeTab === 'anime' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
-            }`}
+            className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${activeTab === 'anime' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
           >
             {totalCachedAnime}
           </span>
@@ -63,20 +60,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Tab 3: User List */}
         <button
           onClick={() => onTabChange('users')}
-          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${
-            activeTab === 'users'
+          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${activeTab === 'users'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold'
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <div className="flex items-center space-x-2.5 min-w-0 pr-1">
             <Users className="w-4 h-4 flex-shrink-0" />
             <span className="whitespace-nowrap font-bold pr-1">Danh Sách Người Dùng</span>
           </div>
           <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${
-              activeTab === 'users' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
-            }`}
+            className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${activeTab === 'users' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
           >
             {totalUsers}
           </span>
@@ -85,11 +80,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Tab 4: Badges Management */}
         <button
           onClick={() => onTabChange('badges')}
-          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${
-            activeTab === 'badges'
+          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${activeTab === 'badges'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold'
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <div className="flex items-center space-x-2.5 min-w-0">
             <Award className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -100,11 +94,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Tab 5: Borders Management */}
         <button
           onClick={() => onTabChange('borders')}
-          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${
-            activeTab === 'borders'
+          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition cursor-pointer overflow-hidden ${activeTab === 'borders'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold'
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <div className="flex items-center space-x-2.5 min-w-0">
             <Shield className="w-4 h-4 text-purple-400 flex-shrink-0" />

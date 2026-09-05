@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Anime, ApiResponse } from '../types/anime';
 import { formatAnimeStatus } from '../utils/status';
-import { Star, Play, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar } from 'lucide-react';
+import { Star, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar, Play } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface AnimeDetailPageProps {
@@ -162,12 +162,16 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
               />
             </div>
 
+            <div className="w-full mt-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-300 rounded-xl font-bold text-xs text-center">
+              <span>{anime.currentEpisodes != null ? `Số tập: ${anime.currentEpisodes}${anime.episodes ? `/${anime.episodes}` : ''} Tập` : anime.episodes ? `Tổng số: ${anime.episodes} Tập` : 'Phim Đang Cập Nhật'}</span>
+            </div>
+
             <Link
               to={`/watch/${anime.id}?ep=1`}
-              className="w-full mt-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center space-x-2 transition text-center"
+              className="w-full mt-3 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-sm text-center shadow-lg shadow-purple-600/30 flex items-center justify-center space-x-2 transition cursor-pointer"
             >
-              <Play className="w-5 h-5 fill-current" />
-              <span>Xem Phim Ngay (Tập 1)</span>
+              <Play className="w-4 h-4 fill-current" />
+              <span>Xem Phim Ngay</span>
             </Link>
           </div>
 
@@ -188,15 +192,25 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
                   <span>{(anime.averageScore / 10).toFixed(1)} / 10</span>
                 </div>
               )}
-              {(anime.startDate || anime.seasonYear) && (
+              {(anime.lastAiredAt || anime.endDate || anime.startDate || anime.seasonYear) && (
                 <div className="flex items-center space-x-1.5 bg-cyan-400/10 border border-cyan-400/20 text-cyan-300 px-3 py-1 rounded-lg text-sm font-semibold">
                   <Calendar className="w-4 h-4 text-cyan-400" />
-                  <span>{anime.startDate || `Năm ${anime.seasonYear}`}</span>
+                  <span>
+                    {anime.lastAiredAt
+                      ? anime.lastAiredAt.split('T')[0]
+                      : anime.endDate
+                      ? anime.endDate
+                      : anime.startDate
+                      ? anime.startDate
+                      : `Năm ${anime.seasonYear}`}
+                  </span>
                 </div>
               )}
-              {anime.episodes && (
+              {(anime.currentEpisodes != null || anime.episodes != null) && (
                 <span className="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1 rounded-lg text-sm">
-                  {anime.episodes} Tập
+                  {anime.currentEpisodes != null
+                    ? `${anime.currentEpisodes}${anime.episodes ? `/${anime.episodes}` : ''} Tập`
+                    : `${anime.episodes} Tập`}
                 </span>
               )}
               <span className="bg-pink-500/10 border border-pink-500/20 text-pink-300 font-semibold px-3 py-1 rounded-lg text-sm">
@@ -225,24 +239,41 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
               />
             </div>
 
-            {/* Episode List Selector */}
-            <div className="mt-8 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2">
-                <Play className="w-5 h-5 text-purple-400" />
-                <span>Danh Sách Tập Phim</span>
-              </h3>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
-                {Array.from({ length: anime.episodes || 12 }, (_, i) => i + 1).map((ep) => (
-                  <Link
-                    key={ep}
-                    to={`/watch/${anime.id}?ep=${ep}`}
-                    className="py-2 px-3 bg-slate-800 hover:bg-purple-600 hover:text-white border border-slate-700 text-slate-300 rounded-xl text-center font-medium text-xs transition shadow-sm"
-                  >
-                    Tập {ep}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            {/* Episode Count Display */}
+            {(() => {
+              const releasedCount = anime.currentEpisodes ?? anime.episodes ?? 0;
+              const totalCount = anime.episodes;
+              return (
+                <div className="mt-8 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                      <Film className="w-5 h-5 text-purple-400" />
+                      <span>Danh Sách Các Tập</span>
+                    </h3>
+                    {anime.status === 'RELEASING' && (
+                      <span className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                        Đang phát sóng
+                      </span>
+                    )}
+                  </div>
+                  {releasedCount === 0 ? (
+                    <p className="text-slate-400 text-xs italic">Phim chưa phát sóng tập nào.</p>
+                  ) : (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
+                      {Array.from({ length: releasedCount }, (_, i) => i + 1).map((ep) => (
+                        <Link
+                          key={ep}
+                          to={`/watch/${anime.id}?ep=${ep}`}
+                          className="py-2 px-3 bg-slate-900/80 hover:bg-purple-600 hover:text-white border border-slate-800 text-slate-300 rounded-xl text-center font-bold text-xs shadow-sm transition cursor-pointer"
+                        >
+                          Tập {ep}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Related Parts / Seasons Section (Anime Only) */}
             {(() => {
@@ -318,7 +349,7 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
               <div className="mt-8 bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center space-x-2">
                   <Film className="w-5 h-5 text-pink-400" />
-                  <span>Trailer Chính Thức</span>
+                  <span>Trailer</span>
                 </h3>
                 <div className="aspect-video w-full bg-black rounded-xl overflow-hidden border border-slate-800 shadow-xl">
                   <iframe

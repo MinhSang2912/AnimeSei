@@ -86,7 +86,7 @@ export const HomePage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const effectiveLastPage = Math.min(lastPage, (animeList.length < 20 && page >= 1) ? page : lastPage);
+  const effectiveLastPage = Math.max(1, lastPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > effectiveLastPage) return;
@@ -109,16 +109,18 @@ export const HomePage: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16">
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        
-        {/* Title & Main Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-          <div className="flex items-center space-x-2">
-            <Film className="w-6 h-6 text-purple-500" />
-            <h2 className="text-2xl font-bold text-white tracking-tight">
-              {query ? `Kết quả tìm kiếm cho: "${query}"` : 'Danh sách anime'}
-            </h2>
+
+        {/* Title Header (Only shown when searching) */}
+        {query && (
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+            <div className="flex items-center space-x-2">
+              <Film className="w-6 h-6 text-purple-500" />
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Kết quả tìm kiếm cho: "{query}"
+              </h2>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Filter Bar Controls */}
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-xl">
@@ -227,11 +229,10 @@ export const HomePage: React.FC = () => {
                       <button
                         key={pNum}
                         onClick={() => handlePageChange(pNum)}
-                        className={`w-9 h-9 rounded-xl font-bold text-xs transition border flex items-center justify-center flex-shrink-0 cursor-pointer ${
-                          pNum === page
+                        className={`w-9 h-9 rounded-xl font-bold text-xs transition border flex items-center justify-center flex-shrink-0 cursor-pointer ${pNum === page
                             ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/30 ring-2 ring-purple-400/20'
                             : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300'
-                        }`}
+                          }`}
                       >
                         {pNum}
                       </button>

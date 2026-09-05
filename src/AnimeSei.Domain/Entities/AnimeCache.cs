@@ -9,7 +9,8 @@ public class AnimeCache
     public string Description { get; set; } = string.Empty;
     public string? CoverImage { get; set; }
     public string? BannerImage { get; set; }
-    public int? Episodes { get; set; }
+    public int? Episodes { get; set; } // Tổng số tập dự kiến (Total episodes)
+    public int? CurrentEpisodes { get; set; } // Số tập đã phát sóng hiện tại (NextAiringEpisode - 1 or Released episodes)
     public string Status { get; set; } = string.Empty;
     public string? Format { get; set; }
     public string? CountryOfOrigin { get; set; }
@@ -18,11 +19,16 @@ public class AnimeCache
     public int? AverageScore { get; set; }
     public int? SeasonYear { get; set; }
     public string? StartDate { get; set; }
+    public string? EndDate { get; set; }
+    public DateTime? LastAiredAt { get; set; }
     public string? TrailerSite { get; set; }
     public string? TrailerId { get; set; }
     public List<AnimeRelationDto>? Relations { get; set; } = new();
     public int ViewCount { get; set; } = 0;
     public DateTime LastSyncedAt { get; set; } = DateTime.UtcNow;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<Episode> EpisodeList { get; set; } = new();
 }
 
 public class AnimeRelationDto

@@ -7,6 +7,7 @@ export interface Anime {
   coverImage?: string;
   bannerImage?: string;
   episodes?: number;
+  currentEpisodes?: number;
   status: string;
   format?: string;
   countryOfOrigin?: string;
@@ -15,10 +16,24 @@ export interface Anime {
   averageScore?: number;
   seasonYear?: number;
   startDate?: string;
+  endDate?: string;
+  lastAiredAt?: string;
   trailerSite?: string;
   trailerId?: string;
   relations?: AnimeRelation[];
   viewCount: number;
+}
+
+export interface Episode {
+  id: number;
+  animeId: number;
+  episodeNumber: number;
+  title: string;
+  embedUrl?: string;
+  hlsUrl?: string;
+  serverName: string;
+  subtitlesJson?: string;
+  createdAt?: string;
 }
 
 export interface AnimeRelation {

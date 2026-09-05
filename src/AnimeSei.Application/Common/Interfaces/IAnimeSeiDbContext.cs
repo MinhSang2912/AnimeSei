@@ -14,6 +14,7 @@ public interface IAnimeSeiDbContext
     DbSet<UserInventory> UserInventories { get; }
     DbSet<Comment> Comments { get; }
     DbSet<Rating> Ratings { get; }
+    DbSet<Episode> Episodes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

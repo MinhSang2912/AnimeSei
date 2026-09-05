@@ -29,7 +29,7 @@ public class AniListAutoSyncWorker : BackgroundService
             return;
         }
 
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(30));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(20));
 
         try
         {

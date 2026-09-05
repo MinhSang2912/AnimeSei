@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { Anime } from '../../types/anime';
 import { formatAnimeStatus } from '../../utils/status';
@@ -28,6 +28,11 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
 }) => {
   const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [inputPage, setInputPage] = useState<string>(animePage.toString());
+
+  useEffect(() => {
+    setInputPage(animePage.toString());
+  }, [animePage]);
 
   const handleOpenDetail = (anime: Anime) => {
     setSelectedAnime(anime);
@@ -39,7 +44,7 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
       {/* Search & Header Bar */}
       <div className="p-5 border-b border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-white text-base">Danh Sách Anime Trong CSDL</h3>
+          <h3 className="font-bold text-white text-base">Danh Sách Anime</h3>
           <p className="text-xs text-slate-400 mt-0.5">Sắp xếp theo ngày đồng bộ mới nhất (Tổng: {animeTotal} bộ)</p>
         </div>
 
@@ -107,13 +112,12 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        a.status === 'FINISHED'
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${a.status === 'FINISHED'
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                           : a.status === 'RELEASING'
-                          ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                          : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                      }`}
+                            ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                            : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        }`}
                     >
                       {formatAnimeStatus(a.status)}
                     </span>
@@ -152,25 +156,86 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
       </div>
 
       {/* Anime Table Pagination */}
-      <div className="p-4 border-t border-slate-800 flex items-center justify-between">
+      <div className="p-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
         <p className="text-xs text-slate-400">
-          Trang <span className="font-bold text-white">{animePage}</span> / {animeLastPage}
+          Hiển thị trang <span className="font-bold text-white">{animePage}</span> / <span className="font-bold text-purple-400">{animeLastPage}</span> (Tổng số {animeTotal} bộ phim)
         </p>
-        <div className="flex items-center space-x-2">
-          <button
-            disabled={animePage <= 1}
-            onClick={() => onPageChange(Math.max(1, animePage - 1))}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition cursor-pointer"
+
+        <div className="flex items-center space-x-3">
+          {/* Jump to Page Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const parsed = parseInt(inputPage, 10);
+              if (!isNaN(parsed)) {
+                const target = Math.max(1, Math.min(parsed, animeLastPage));
+                onPageChange(target);
+                setInputPage(target.toString());
+              }
+            }}
+            className="flex items-center space-x-1.5"
           >
-            <ChevronLeft className="w-4 h-4 text-slate-300" />
-          </button>
-          <button
-            disabled={animePage >= animeLastPage}
-            onClick={() => onPageChange(Math.min(animeLastPage, animePage + 1))}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition cursor-pointer"
-          >
-            <ChevronRight className="w-4 h-4 text-slate-300" />
-          </button>
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Đến trang:</span>
+            <input
+              type="number"
+              min={1}
+              max={animeLastPage}
+              value={inputPage}
+              onChange={(e) => setInputPage(e.target.value)}
+              onBlur={() => {
+                const parsed = parseInt(inputPage, 10);
+                if (isNaN(parsed) || parsed < 1) {
+                  setInputPage('1');
+                } else if (parsed > animeLastPage) {
+                  setInputPage(animeLastPage.toString());
+                }
+              }}
+              className="w-16 px-2 py-1 bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-lg text-center text-xs font-semibold text-white focus:outline-none transition shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              placeholder="1"
+            />
+            <button
+              type="submit"
+              className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition shadow-md cursor-pointer"
+            >
+              Đi
+            </button>
+          </form>
+
+          {/* Navigation Buttons */}
+          <div className="flex items-center space-x-1 border-l border-slate-800 pl-3">
+            <button
+              disabled={animePage <= 1}
+              onClick={() => onPageChange(1)}
+              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition text-xs font-bold text-slate-300 cursor-pointer"
+              title="Trang đầu"
+            >
+              Đầu
+            </button>
+            <button
+              disabled={animePage <= 1}
+              onClick={() => onPageChange(Math.max(1, animePage - 1))}
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition cursor-pointer"
+              title="Trang trước"
+            >
+              <ChevronLeft className="w-4 h-4 text-slate-300" />
+            </button>
+            <button
+              disabled={animePage >= animeLastPage}
+              onClick={() => onPageChange(Math.min(animeLastPage, animePage + 1))}
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition cursor-pointer"
+              title="Trang sau"
+            >
+              <ChevronRight className="w-4 h-4 text-slate-300" />
+            </button>
+            <button
+              disabled={animePage >= animeLastPage}
+              onClick={() => onPageChange(animeLastPage)}
+              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition text-xs font-bold text-slate-300 cursor-pointer"
+              title="Trang cuối"
+            >
+              Cuối
+            </button>
+          </div>
         </div>
       </div>
 

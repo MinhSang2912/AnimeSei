@@ -19,6 +19,7 @@ public class AnimeSeiDbContext : DbContext, IAnimeSeiDbContext
     public DbSet<UserInventory> UserInventories => Set<UserInventory>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<Rating> Ratings => Set<Rating>();
+    public DbSet<Episode> Episodes => Set<Episode>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -104,6 +105,17 @@ public class AnimeSeiDbContext : DbContext, IAnimeSeiDbContext
                       v => string.IsNullOrEmpty(v) ? new List<AnimeRelationDto>() : JsonSerializer.Deserialize<List<AnimeRelationDto>>(v, (JsonSerializerOptions?)null) ?? new List<AnimeRelationDto>()
                   )
                   .Metadata.SetValueComparer(animeRelationComparer);
+        });
+
+        // Episode Configuration
+        modelBuilder.Entity<Episode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.AnimeId, e.EpisodeNumber });
+            entity.HasOne(e => e.Anime)
+                  .WithMany(a => a.EpisodeList)
+                  .HasForeignKey(e => e.AnimeId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -109,7 +109,13 @@ export const AdminAnimeDetailModal: React.FC<AdminAnimeDetailModalProps> = ({
                 </div>
                 <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
                   <span className="text-slate-400 text-[10px] uppercase font-semibold">Số Tập</span>
-                  <p className="font-bold text-slate-200 mt-0.5">{anime.episodes ? `${anime.episodes} tập` : 'Chưa rõ'}</p>
+                  <p className="font-bold text-slate-200 mt-0.5">
+                    {anime.currentEpisodes != null
+                      ? `${anime.currentEpisodes}${anime.episodes ? `/${anime.episodes}` : ''} tập`
+                      : anime.episodes
+                      ? `${anime.episodes} tập`
+                      : 'Chưa rõ'}
+                  </p>
                 </div>
                 <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
                   <span className="text-slate-400 text-[10px] uppercase font-semibold">Quốc Gia</span>
