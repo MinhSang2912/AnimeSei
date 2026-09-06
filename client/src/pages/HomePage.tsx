@@ -1,9 +1,11 @@
-import React, { useEffect, useState, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Anime, ApiResponse, PagedResult } from '../types/anime';
 import { AnimeCard } from '../components/AnimeCard';
-import { Film, Filter, ChevronDown, Check } from 'lucide-react';
+import { Film, Filter } from 'lucide-react';
+import { CustomSelect } from '../components/common/CustomSelect';
+import { Pagination } from '../components/common/Pagination';
 
 const GENRES = [
   { value: 'ALL', label: 'Tất cả thể loại' },
@@ -41,72 +43,7 @@ const FORMATS = [
   { value: 'ALL', label: 'Tất cả loại phim' },
 ];
 
-interface CustomSelectProps {
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (val: string) => void;
-  minWidth?: string;
-}
 
-const CustomSelect: React.FC<CustomSelectProps> = ({ value, options, onChange, minWidth = 'w-48' }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const selectedOption = options.find((o) => o.value === value) || options[0];
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className={`relative ${minWidth}`} ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between bg-slate-950 hover:bg-slate-900 border border-slate-800 focus:border-purple-500 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-200 transition-all duration-200 shadow-inner cursor-pointer"
-      >
-        <span className="truncate">{selectedOption?.label}</span>
-        <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-2 ${
-            isOpen ? 'rotate-180 text-purple-400' : ''
-          }`}
-        />
-      </button>
-
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 shadow-2xl shadow-black/80 max-h-64 overflow-y-auto space-y-1">
-          {options.map((opt) => {
-            const isSelected = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  onChange(opt.value);
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 text-left ${
-                  isSelected
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <span className="truncate">{opt.label}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0 ml-1.5" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export const HomePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -120,11 +57,6 @@ export const HomePage: React.FC = () => {
   const [animeList, setAnimeList] = useState<Anime[]>([]);
   const [lastPage, setLastPage] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
-  const [inputPage, setInputPage] = useState<string>(page.toString());
-
-  useEffect(() => {
-    setInputPage(page.toString());
-  }, [page]);
 
   useEffect(() => {
     const fetchAnime = async () => {
@@ -197,18 +129,6 @@ export const HomePage: React.FC = () => {
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > effectiveLastPage) return;
     updateFilters(undefined, undefined, undefined, newPage);
-  };
-
-  const handleJumpPageSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = parseInt(inputPage, 10);
-    if (isNaN(parsed)) {
-      setInputPage(page.toString());
-      return;
-    }
-    const target = Math.max(1, Math.min(parsed, effectiveLastPage));
-    handlePageChange(target);
-    setInputPage(target.toString());
   };
 
   return (
@@ -292,86 +212,11 @@ export const HomePage: React.FC = () => {
             </div>
 
             {/* Pagination Controls */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
-              {/* Page Number Badges */}
-              <div className="flex items-center space-x-1.5 px-2 overflow-x-auto max-w-[600px] py-1">
-                {(() => {
-                  const delta = 2;
-                  const left = page - delta;
-                  const right = page + delta;
-                  const range: (number | string)[] = [];
-                  let l: number | null = null;
-
-                  for (let i = 1; i <= effectiveLastPage; i++) {
-                    if (i === 1 || i === effectiveLastPage || (i >= left && i <= right)) {
-                      if (l !== null) {
-                        if (i - l === 2) {
-                          range.push(l + 1);
-                        } else if (i - l > 2) {
-                          range.push('...');
-                        }
-                      }
-                      range.push(i);
-                      l = i;
-                    }
-                  }
-
-                  return range.map((item, idx) => {
-                    if (item === '...') {
-                      return (
-                        <span key={`dots-${idx}`} className="px-1.5 text-slate-500 font-bold text-xs select-none">
-                          ...
-                        </span>
-                      );
-                    }
-                    const pNum = Number(item);
-                    return (
-                      <button
-                        key={pNum}
-                        onClick={() => handlePageChange(pNum)}
-                        className={`w-9 h-9 rounded-xl font-bold text-xs transition border flex items-center justify-center flex-shrink-0 cursor-pointer ${pNum === page
-                            ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/30 ring-2 ring-purple-400/20'
-                            : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300'
-                          }`}
-                      >
-                        {pNum}
-                      </button>
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* Jump to Page Form */}
-              <form
-                onSubmit={handleJumpPageSubmit}
-                className="flex items-center space-x-2 border-l border-slate-800/80 pl-4 ml-1"
-              >
-                <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Đến trang:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={effectiveLastPage}
-                  value={inputPage}
-                  onChange={(e) => setInputPage(e.target.value)}
-                  onBlur={() => {
-                    const parsed = parseInt(inputPage, 10);
-                    if (isNaN(parsed) || parsed < 1) {
-                      setInputPage('1');
-                    } else if (parsed > effectiveLastPage) {
-                      setInputPage(effectiveLastPage.toString());
-                    }
-                  }}
-                  className="w-16 px-2.5 py-1.5 bg-slate-900 border border-slate-800 focus:border-purple-500 rounded-xl text-center text-xs font-semibold text-white focus:outline-none transition shadow-inner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  placeholder="1"
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer"
-                >
-                  Đi
-                </button>
-              </form>
-            </div>
+            <Pagination 
+              page={page} 
+              lastPage={effectiveLastPage} 
+              onPageChange={handlePageChange} 
+            />
           </>
         )}
       </div>

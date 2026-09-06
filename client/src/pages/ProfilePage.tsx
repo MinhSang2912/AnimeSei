@@ -1,31 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import type { ApiResponse, User } from '../types/anime';
 import { 
   User as UserIcon, 
   Award, 
   Shield, 
-  History, 
+  Key, 
   Upload, 
   Loader2, 
-  CheckCircle2, 
-  PlayCircle,
   ShoppingBag,
-  Sparkles,
   Mail,
-  Calendar,
-  Check,
-  XCircle,
-  Edit2,
-  Key,
-  Eye,
-  EyeOff,
   MessageSquare,
-  ArrowRight
+  XCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDominantColor } from '../hooks/useDominantColor';
+import { ProfileInfoTab } from './profile/ProfileInfoTab';
+import { ProfileInventoryTab } from './profile/ProfileInventoryTab';
+import { ProfileSecurityTab } from './profile/ProfileSecurityTab';
+import { ProfileHistoryTab } from './profile/ProfileHistoryTab';
 
 interface ProfilePageProps {
   user: User | null;
@@ -34,48 +28,28 @@ interface ProfilePageProps {
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) => {
   const [profile, setProfile] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
   const [userComments, setUserComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
-  const initialTab = (searchParams.get('tab') as any) || 'info';
-  const [activeTab, setActiveTab] = useState<'info' | 'inventory' | 'security' | 'comments'>(['info', 'inventory', 'security', 'comments'].includes(initialTab) ? initialTab : 'info');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('tab') as 'info' | 'inventory' | 'security' | 'comments') || 'info';
   const [uploading, setUploading] = useState(false);
-  const [equippingId, setEquippingId] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
-  const [editingField, setEditingField] = useState<'username' | 'email' | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [savingProfile, setSavingProfile] = useState(false);
 
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [changingPassword, setChangingPassword] = useState(false);
-
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const handleTabChange = (tab: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab);
+    setSearchParams(newParams);
+  };
 
   useEffect(() => {
-    const tab = new URLSearchParams(location.search).get('tab');
-    if (tab && ['info', 'inventory', 'security', 'comments'].includes(tab)) {
-      setActiveTab(tab as any);
-    } else {
-      setActiveTab('info');
-    }
-  }, [location.search]);
+    fetchProfile();
+  }, []);
 
   const fetchProfile = async () => {
     try {
       const res = await api.get<ApiResponse<any>>('/profile');
       if (res.data.success) {
         setProfile(res.data.data);
-      }
-
-      const histRes = await api.get<ApiResponse<any[]>>('/watchhistory');
-      if (histRes.data.success) {
-        setHistory(histRes.data.data || []);
       }
 
       const commentsRes = await api.get<ApiResponse<any[]>>('/comment/user');
@@ -88,10 +62,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,82 +96,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
     }
   };
 
-  const handleEquipItem = async (itemId: string | null, itemType: 1 | 2) => {
-    const actionKey = `${itemType}-${itemId ?? 'none'}`;
-    setEquippingId(actionKey);
-    try {
-      const res = await api.post<ApiResponse<string>>('/profile/equip', {
-        itemType,
-        itemId: itemId ? itemId : null
-      });
-
-      if (res.data.success) {
-        toast.success(itemId ? '🎉 Đã trang bị vật phẩm thành công!' : 'Đã tháo trang bị!');
-        await fetchProfile();
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Không thể thay đổi trang bị');
-    } finally {
-      setEquippingId(null);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    if (!editingField || !editValue.trim()) {
-      setEditingField(null);
-      return;
-    }
-    setSavingProfile(true);
-    try {
-      const payload = editingField === 'username' ? { username: editValue } : { email: editValue };
-      const res = await api.put<ApiResponse<any>>('/profile', payload);
-      if (res.data.success) {
-        toast.success(res.data.message || 'Cập nhật thành công');
-        const updatedUser = res.data.data;
-        setProfile((prev: any) => ({ ...prev, username: updatedUser.username || updatedUser.Username, email: updatedUser.email || updatedUser.Email }));
-        if (onUpdateUser) {
-          onUpdateUser({ username: updatedUser.username || updatedUser.Username, email: updatedUser.email || updatedUser.Email });
-        }
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Lỗi khi cập nhật thông tin');
-    } finally {
-      setSavingProfile(false);
-      setEditingField(null);
-    }
-  };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      toast.error('Mật khẩu xác nhận không khớp');
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast.error('Mật khẩu mới phải có ít nhất 6 ký tự');
-      return;
-    }
-
-    setChangingPassword(true);
-    try {
-      const res = await api.put<ApiResponse<any>>('/profile/change-password', {
-        oldPassword,
-        newPassword,
-        confirmPassword
-      });
-      if (res.data.success) {
-        toast.success(res.data.message || 'Đổi mật khẩu thành công');
-        setOldPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Lỗi khi đổi mật khẩu');
-    } finally {
-      setChangingPassword(false);
-    }
-  };
-
   // Safe property extraction (handles both camelCase and PascalCase from API)
   const currentBadge = profile?.currentBadge || profile?.CurrentBadge;
   const currentBorder = profile?.currentBorder || profile?.CurrentBorder;
@@ -210,7 +104,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
 
   const currentBadgeId = currentBadge?.id || currentBadge?.Id || profile?.currentBadgeId || profile?.CurrentBadgeId;
   const currentBorderId = currentBorder?.id || currentBorder?.Id || profile?.currentBorderId || profile?.CurrentBorderId;
-  
+
   const rawFrameUrl = currentBorder?.imageUrl || currentBorder?.ImageUrl || currentBorder?.frameUrl || currentBorder?.FrameUrl;
   const isImageBorder = rawFrameUrl?.startsWith('http') || rawFrameUrl?.startsWith('/');
   const frameClass = isImageBorder ? 'border-transparent' : (rawFrameUrl || 'border-purple-500');
@@ -350,7 +244,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
         {/* Navigation Tabs */}
         <div className="flex border-b border-slate-800 mb-8 space-x-6">
           <button
-            onClick={() => setActiveTab('info')}
+            onClick={() => handleTabChange('info')}
             className={`pb-4 text-sm font-bold flex items-center space-x-2.5 border-b-2 transition ${
               activeTab === 'info' 
                 ? 'border-purple-500 text-purple-400' 
@@ -362,7 +256,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
           </button>
           
           <button
-            onClick={() => setActiveTab('inventory')}
+            onClick={() => handleTabChange('inventory')}
             className={`pb-4 text-sm font-bold flex items-center space-x-2.5 border-b-2 transition ${
               activeTab === 'inventory' 
                 ? 'border-purple-500 text-purple-400' 
@@ -374,7 +268,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
           </button>
           
           <button
-            onClick={() => setActiveTab('security')}
+            onClick={() => handleTabChange('security')}
             className={`pb-4 text-sm font-bold flex items-center space-x-2.5 border-b-2 transition ${
               activeTab === 'security' 
                 ? 'border-purple-500 text-purple-400' 
@@ -386,7 +280,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
           </button>
           
           <button
-            onClick={() => setActiveTab('comments')}
+            onClick={() => handleTabChange('comments')}
             className={`pb-4 text-sm font-bold flex items-center space-x-2.5 border-b-2 transition ${
               activeTab === 'comments' 
                 ? 'border-purple-500 text-purple-400' 
@@ -400,542 +294,46 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
 
         {/* TAB 1: Thông Tin Cá Nhân */}
         {activeTab === 'info' && (
-          <div className="space-y-6">
-            {/* Account Details */}
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-              <h3 className="text-base font-bold text-white mb-4 flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span>Chi Tiết Tài Khoản</span>
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                <div className="bg-slate-950/50 p-3.5 rounded-xl border border-slate-800 relative group">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold block mb-1">Tên người dùng</span>
-                  <div className="flex items-center justify-between">
-                    {editingField === 'username' ? (
-                      <div className="flex items-center space-x-2 w-full">
-                        <input 
-                          type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="flex-1 bg-slate-900 border border-slate-700 text-white px-2 py-1 rounded text-sm focus:outline-none focus:border-purple-500"
-                          disabled={savingProfile}
-                          autoFocus
-                          onKeyDown={(e) => e.key === 'Enter' && handleSaveProfile()}
-                        />
-                        <button onClick={handleSaveProfile} disabled={savingProfile} className="text-emerald-400 hover:text-emerald-300">
-                          {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        </button>
-                        <button onClick={() => setEditingField(null)} disabled={savingProfile} className="text-rose-400 hover:text-rose-300">
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="font-bold text-white text-base">{username}</span>
-                        <button 
-                          onClick={() => { setEditingField('username'); setEditValue(username); }}
-                          className="text-slate-500 hover:text-purple-400 transition opacity-0 group-hover:opacity-100" 
-                          title="Chỉnh sửa tên người dùng"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-slate-950/50 p-3.5 rounded-xl border border-slate-800 relative group">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold block mb-1">Email liên hệ</span>
-                  <div className="flex items-center justify-between overflow-hidden gap-2">
-                    {editingField === 'email' ? (
-                      <div className="flex items-center space-x-2 w-full">
-                        <input 
-                          type="email"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="flex-1 bg-slate-900 border border-slate-700 text-white px-2 py-1 rounded text-sm focus:outline-none focus:border-purple-500"
-                          disabled={savingProfile}
-                          autoFocus
-                          onKeyDown={(e) => e.key === 'Enter' && handleSaveProfile()}
-                        />
-                        <button onClick={handleSaveProfile} disabled={savingProfile} className="text-emerald-400 hover:text-emerald-300 shrink-0">
-                          {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        </button>
-                        <button onClick={() => setEditingField(null)} disabled={savingProfile} className="text-rose-400 hover:text-rose-300 shrink-0">
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="font-semibold text-slate-200 text-sm truncate">{email}</span>
-                        <button 
-                          onClick={() => { setEditingField('email'); setEditValue(email); }}
-                          className="text-slate-500 hover:text-purple-400 transition opacity-0 group-hover:opacity-100 shrink-0" 
-                          title="Chỉnh sửa email"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-slate-950/50 p-3.5 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold block mb-1">Quyền hệ thống</span>
-                  <span className="font-bold text-purple-400 capitalize">{role}</span>
-                </div>
-
-                <div className="bg-slate-950/50 p-3.5 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold block mb-1">Điểm tích lũy</span>
-                  <span className="font-extrabold text-amber-400 text-base">{points} đ</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Stat metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center">
-                <Award className="w-5 h-5 text-amber-400 mx-auto mb-1.5" />
-                <span className="text-xs text-slate-400 font-medium block">Điểm thưởng</span>
-                <span className="text-lg font-black text-white">{points}</span>
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center">
-                <Shield className="w-5 h-5 text-purple-400 mx-auto mb-1.5" />
-                <span className="text-xs text-slate-400 font-medium block">Huy hiệu</span>
-                <span className="text-lg font-black text-white">{ownedBadges.length}</span>
-              </div>
-
-              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl text-center">
-                <Sparkles className="w-5 h-5 text-indigo-400 mx-auto mb-1.5" />
-                <span className="text-xs text-slate-400 font-medium block">Khung viền</span>
-                <span className="text-lg font-black text-white">{ownedBorders.length}</span>
-              </div>
-            </div>
-          </div>
+          <ProfileInfoTab 
+            user={user}
+            profile={profile}
+            setProfile={setProfile}
+            onUpdateUser={onUpdateUser}
+            points={points}
+            role={role}
+            ownedBadges={ownedBadges}
+            ownedBorders={ownedBorders}
+            username={username}
+            email={email}
+          />
         )}
 
         {/* TAB 2: Kho Vật Phẩm Độc Quyền (Trang bị / Tháo vật phẩm) */}
         {activeTab === 'inventory' && (
-          <div className="space-y-8">
-            
-            {/* Section 1: Owned Badges */}
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                  <Award className="w-5 h-5 text-amber-400" />
-                  <span>Huy Hiệu Sở Hữu ({ownedBadges.length})</span>
-                </h3>
-              </div>
-
-              {ownedBadges.length === 0 ? (
-                <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-xl p-8 text-center">
-                  <p className="text-xs text-slate-400 mb-3">Bạn chưa sở hữu huy hiệu nào.</p>
-                  <Link to="/shop" className="inline-flex items-center space-x-1.5 text-xs text-purple-400 hover:text-purple-300 font-bold">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>Ghé Cửa Hàng để nhận huy hiệu!</span>
-                  </Link>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {ownedBadges.map((badge: any) => {
-                    const badgeId = badge.id || badge.Id;
-                    const badgeName = badge.name || badge.Name;
-                    const badgeIcon = badge.iconUrl || badge.IconUrl;
-                    const badgeImageUrl = badge.imageUrl || badge.ImageUrl;
-                    const badgeDesc = badge.description || badge.Description;
-
-                    const isEquipped = currentBadgeId === badgeId;
-                    const actionKey = `1-${badgeId}`;
-                    const isEquipping = equippingId === actionKey;
-                    
-                    const displayImage = badgeImageUrl || (badgeIcon?.startsWith('http') ? badgeIcon : null);
-
-                    return (
-                      <div 
-                        key={badgeId} 
-                        className={`p-4 rounded-xl flex flex-col justify-between border transition duration-200 ${
-                          isEquipped 
-                            ? 'bg-purple-950/30 border-purple-500 shadow-md shadow-purple-950/50' 
-                            : 'bg-slate-800/80 border-slate-700/80 hover:border-slate-600'
-                        }`}
-                      >
-                        <div className="flex items-start space-x-4 mb-3">
-                          <div className="shrink-0 p-1.5 bg-slate-900 rounded-xl border border-slate-700/50 w-20 h-20 flex items-center justify-center shadow-inner">
-                            {displayImage ? (
-                              <img src={displayImage} alt={badgeName} className="max-w-full max-h-full object-contain drop-shadow-lg hover:scale-110 transition-transform" />
-                            ) : (
-                              <span className="text-5xl leading-none">{badgeIcon}</span>
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-1.5">
-                              <h4 className="font-bold text-sm text-white">{badgeName}</h4>
-                              {isEquipped && (
-                                <span title="Đang sử dụng">
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{badgeDesc}</p>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-700/50 flex justify-end">
-                          {isEquipped ? (
-                            <button
-                              onClick={() => handleEquipItem(null, 1)}
-                              disabled={isEquipping}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-rose-400 hover:bg-rose-950/50 border border-rose-800/40 transition flex items-center space-x-1"
-                            >
-                              {isEquipping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                              <span>Tháo Huy Hiệu</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleEquipItem(badgeId, 1)}
-                              disabled={isEquipping}
-                              className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white hover:bg-purple-500 transition shadow flex items-center space-x-1"
-                            >
-                              {isEquipping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              <span>Trang Bị</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Section 2: Owned Borders */}
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-indigo-400" />
-                  <span>Khung Viền Avatar Sở Hữu ({ownedBorders.length})</span>
-                </h3>
-              </div>
-
-              {ownedBorders.length === 0 ? (
-                <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-xl p-8 text-center">
-                  <p className="text-xs text-slate-400 mb-3">Bạn chưa sở hữu khung viền avatar nào.</p>
-                  <Link to="/shop" className="inline-flex items-center space-x-1.5 text-xs text-purple-400 hover:text-purple-300 font-bold">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>Ghé Cửa Hàng để đổi khung viền!</span>
-                  </Link>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {ownedBorders.map((border: any) => {
-                    const borderId = border.id || border.Id;
-                    const borderName = border.name || border.Name;
-                    const borderImageUrl = border.imageUrl || border.ImageUrl;
-                    const borderFrame = border.frameUrl || border.FrameUrl || 'border-purple-500';
-                    const borderDesc = border.description || border.Description;
-
-                    const isEquipped = currentBorderId === borderId;
-                    const actionKey = `2-${borderId}`;
-                    const isEquipping = equippingId === actionKey;
-
-                    const displayImage = borderImageUrl || (borderFrame?.startsWith('http') ? borderFrame : null);
-                    const isImage = !!displayImage;
-
-                    return (
-                      <div 
-                        key={borderId} 
-                        className={`p-4 rounded-xl flex flex-col justify-between border transition duration-200 ${
-                          isEquipped 
-                            ? 'bg-purple-950/30 border-purple-500 shadow-md shadow-purple-950/50' 
-                            : 'bg-slate-800/80 border-slate-700/80 hover:border-slate-600'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3 mb-3">
-                          <div className={`relative w-12 h-12 rounded-full border-4 ${isImage ? 'border-transparent' : borderFrame} bg-slate-900 flex items-center justify-center shrink-0`}>
-                            {isImage && (
-                              <img src={displayImage} alt={borderName} className="absolute -inset-3 w-[calc(100%+1.5rem)] h-[calc(100%+1.5rem)] max-w-none pointer-events-none drop-shadow-md z-10" />
-                            )}
-                            <UserIcon className="w-6 h-6 text-slate-400" />
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-1.5">
-                              <h4 className="font-bold text-sm text-white">{borderName}</h4>
-                              {isEquipped && (
-                                <span title="Đang sử dụng">
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{borderDesc}</p>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-700/50 flex justify-end">
-                          {isEquipped ? (
-                            <button
-                              onClick={() => handleEquipItem(null, 2)}
-                              disabled={isEquipping}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-rose-400 hover:bg-rose-950/50 border border-rose-800/40 transition flex items-center space-x-1"
-                            >
-                              {isEquipping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                              <span>Tháo Khung Viền</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleEquipItem(borderId, 2)}
-                              disabled={isEquipping}
-                              className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white hover:bg-purple-500 transition shadow flex items-center space-x-1"
-                            >
-                              {isEquipping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              <span>Trang Bị</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-          </div>
+          <ProfileInventoryTab 
+            ownedBadges={ownedBadges}
+            ownedBorders={ownedBorders}
+            currentBadgeId={currentBadgeId}
+            currentBorderId={currentBorderId}
+            onRefreshProfile={fetchProfile}
+          />
         )}
 
         {/* TAB 3: Bảo Mật (Đổi mật khẩu) */}
         {activeTab === 'security' && (
-          <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-2xl mx-auto">
-              <h3 className="text-base font-bold text-white mb-6 flex items-center space-x-2">
-                <Key className="w-5 h-5 text-amber-400" />
-                <span>Đổi Mật Khẩu</span>
-              </h3>
-
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Mật khẩu hiện tại</label>
-                  <div className="relative">
-                    <input
-                      type={showOldPassword ? 'text' : 'password'}
-                      value={oldPassword}
-                      onChange={(e) => setOldPassword(e.target.value)}
-                      required
-                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-4 pr-10 py-2.5 text-sm focus:border-purple-500 focus:outline-none transition shadow-inner"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowOldPassword(!showOldPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
-                    >
-                      {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Mật khẩu mới</label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-4 pr-10 py-2.5 text-sm focus:border-purple-500 focus:outline-none transition shadow-inner"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
-                    >
-                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Xác nhận mật khẩu mới</label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-4 pr-10 py-2.5 text-sm focus:border-purple-500 focus:outline-none transition shadow-inner"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="pt-4 border-t border-slate-800/50 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={changingPassword}
-                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-xl shadow-lg transition flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
-                  >
-                    {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
-                    <span>Cập Nhật Mật Khẩu</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <ProfileSecurityTab />
         )}
 
         {/* TAB 4: Lịch Sử Bình Luận */}
         {activeTab === 'comments' && (
-          <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-              <h3 className="text-base font-bold text-white mb-6 flex items-center space-x-2">
-                <MessageSquare className="w-5 h-5 text-purple-400" />
-                <span>Lịch Sử Bình Luận ({userComments.length})</span>
-              </h3>
-
-              {userComments.length === 0 ? (
-                <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-xl p-8 text-center">
-                  <p className="text-xs text-slate-400 mb-3">Bạn chưa đăng bình luận nào.</p>
-                  <Link to="/" className="inline-flex items-center space-x-1.5 text-xs text-purple-400 hover:text-purple-300 font-bold">
-                    <PlayCircle className="w-3.5 h-3.5" />
-                    <span>Xem anime và bình luận ngay!</span>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {userComments.map((c) => {
-                    return (
-                      <div key={c.id} className="bg-slate-950/50 border border-slate-800 p-5 rounded-xl flex flex-col sm:flex-row gap-5 hover:border-purple-500/50 transition">
-                        
-                        {/* Linked Anime Section (Left side big image) */}
-                        {c.anime && (
-                          <div className="shrink-0 w-28">
-                            <Link to={`/anime/${c.anime.id}`} className="block group">
-                              <div className="relative aspect-[3/4] rounded-lg overflow-hidden border border-slate-700 bg-slate-800 mb-2">
-                                <img 
-                                  src={c.anime.coverImage || 'https://via.placeholder.com/150'} 
-                                  alt={c.anime.titleRomaji} 
-                                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                  <ArrowRight className="w-6 h-6 text-white" />
-                                </div>
-                              </div>
-                              <h4 className="text-xs font-bold text-slate-300 group-hover:text-purple-400 line-clamp-2 text-center transition">{c.anime.titleRomaji}</h4>
-                            </Link>
-                          </div>
-                        )}
-
-                        {/* Comment Content Section (Right side) */}
-                        <div className="flex-1 min-w-0 bg-slate-900 border border-slate-700/50 p-4 rounded-xl flex gap-4">
-                          
-                          {/* Avatar Column with Hover Card Trigger */}
-                          <div className="flex flex-col items-center flex-shrink-0 pt-1 relative group/usercard">
-                            
-                            {/* Avatar & Border Wrapper */}
-                            <div className="relative w-10 h-10">
-                              {/* Basic small avatar on the comment */}
-                              <button 
-                                type="button"
-                                onClick={() => { if (avatarUrl) setIsAvatarModalOpen(true); }}
-                                className={`relative w-full h-full rounded-full border-2 ${frameClass} overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer shadow-sm`}
-                              >
-                                {avatarUrl ? (
-                                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                  <UserIcon className="w-5 h-5 text-slate-400" />
-                                )}
-                              </button>
-                            
-                              {/* Tiny Border Frame on the comment avatar */}
-                              {isImageBorder && (
-                                <img 
-                                  src={rawFrameUrl} 
-                                  alt="Border Frame" 
-                                  className="absolute -inset-1.5 w-[calc(100%+0.75rem)] h-[calc(100%+0.75rem)] max-w-none pointer-events-none drop-shadow-sm z-10" 
-                                />
-                              )}
-                            </div>
-
-                            {/* Hover Popover Card */}
-                            <div className="absolute left-full bottom-0 ml-4 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover/usercard:opacity-100 group-hover/usercard:visible transition-all duration-200 transform translate-x-2 group-hover/usercard:translate-x-0 z-[60] overflow-hidden">
-                              <div className="p-5 bg-slate-900/50 flex flex-col items-center justify-center space-y-3 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
-                                
-                                {/* Large Avatar in Modal */}
-                                <div className="relative group/avatar">
-                                  <button 
-                                    type="button"
-                                    onClick={() => { if (avatarUrl) setIsAvatarModalOpen(true); }}
-                                    className={`relative z-0 w-16 h-16 rounded-full border-2 ${frameClass} overflow-hidden bg-slate-800 flex items-center justify-center shadow-lg group-hover/avatar:scale-105 transition-transform duration-300 cursor-pointer`}
-                                  >
-                                    {avatarUrl ? (
-                                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <UserIcon className="w-8 h-8 text-slate-400" />
-                                    )}
-                                  </button>
-                                  
-                                  {isImageBorder && (
-                                    <img 
-                                      src={rawFrameUrl} 
-                                      alt="Border Frame" 
-                                      className="absolute -inset-2.5 w-[calc(100%+1.25rem)] h-[calc(100%+1.25rem)] max-w-none pointer-events-none drop-shadow-lg z-10" 
-                                    />
-                                  )}
-                                </div>
-
-                                <div className="text-center relative z-10 flex flex-col items-center">
-                                  <span className="font-bold text-white text-base">{username}</span>
-                                  
-                                  {currentBadge && (
-                                    <div 
-                                      className={`mt-2 flex items-center justify-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${dominantBadgeColor ? '' : 'bg-amber-400/20 text-amber-300 border border-amber-400/30 shadow-sm'}`}
-                                      style={dominantBadgeColor ? {
-                                        backgroundColor: dominantBadgeColor.replace('rgb', 'rgba').replace(')', ', 0.15)'),
-                                        borderColor: dominantBadgeColor.replace('rgb', 'rgba').replace(')', ', 0.4)'),
-                                        color: dominantBadgeColor,
-                                        boxShadow: `0 2px 4px -1px ${dominantBadgeColor.replace('rgb', 'rgba').replace(')', ', 0.05)')}`,
-                                        borderWidth: '1px'
-                                      } : undefined}
-                                    >
-                                      {rawBadgeImageUrl?.startsWith('http') ? (
-                                        <img src={rawBadgeImageUrl} className="w-4 h-4 object-contain" alt="badge" />
-                                      ) : (
-                                        <span className="leading-none text-xs">{rawBadgeImageUrl}</span>
-                                      )}
-                                      <span className="truncate max-w-[130px]">{currentBadge.name || currentBadge.Name}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Content Column */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1 pb-2 border-b border-slate-800/60">
-                              <span className="font-bold text-purple-300 text-sm">{username}</span>
-                              <span className="text-[10px] text-slate-500">{new Date(c.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                            <p className="text-slate-200 text-sm mt-2 leading-relaxed break-words whitespace-pre-wrap">{c.content}</p>
-                          </div>
-
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+          <ProfileHistoryTab 
+            userComments={userComments}
+            onAvatarClick={(url) => {
+              if (url) {
+                setIsAvatarModalOpen(true);
+              }
+            }} 
+          />
         )}
 
       </div>

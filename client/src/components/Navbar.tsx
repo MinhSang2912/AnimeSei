@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, LogOut, Award, ShoppingBag, X, Shield, Key, User as UserIcon } from 'lucide-react';
 import { api } from '../services/api';
+import { UserAvatar } from './common/UserAvatar';
+import { UserBadge } from './common/UserBadge';
 
 interface NavbarProps {
   user: any;
@@ -32,9 +34,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenAuthModal 
 
   const currentBadge = profileData?.currentBadge || profileData?.CurrentBadge;
   const currentBorder = profileData?.currentBorder || profileData?.CurrentBorder;
-  const frameUrl = currentBorder?.imageUrl || currentBorder?.ImageUrl || currentBorder?.frameUrl || currentBorder?.FrameUrl;
-  const isImageBorder = frameUrl?.startsWith('http') || frameUrl?.startsWith('/');
-  const frameClass = isImageBorder ? 'border-transparent' : (frameUrl || 'border-purple-500');
   const badgeUrl = currentBadge?.imageUrl || currentBadge?.ImageUrl || currentBadge?.iconUrl || currentBadge?.IconUrl;
 
   useEffect(() => {
@@ -146,36 +145,13 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenAuthModal 
                   <div className="p-5 border-b border-slate-800 bg-slate-900/50 flex flex-col items-center justify-center space-y-3 relative overflow-hidden">
                     <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
                     
-                    <div className="relative group/avatar">
-                      <div className={`relative z-0 w-16 h-16 rounded-full border-2 ${frameClass} overflow-hidden bg-slate-800 flex items-center justify-center shadow-lg`}>
-                        {user.avatarUrl || user.AvatarUrl ? (
-                          <img src={user.avatarUrl || user.AvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                          <UserIcon className="w-8 h-8 text-slate-400" />
-                        )}
-                      </div>
-                      
-                      {isImageBorder && (
-                        <img 
-                          src={frameUrl} 
-                          alt="Border Frame" 
-                          className="absolute -inset-4 w-[calc(100%+2rem)] h-[calc(100%+2rem)] max-w-none pointer-events-none drop-shadow-xl z-10" 
-                        />
-                      )}
-                    </div>
+                    <UserAvatar user={user} border={currentBorder} size="lg" />
 
                     <div className="text-center relative z-10 flex flex-col items-center">
                       <span className="font-bold text-white text-base">{user.username}</span>
                       
                       {currentBadge && (
-                        <div className="mt-2 flex items-center justify-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                          {badgeUrl?.startsWith('http') ? (
-                            <img src={badgeUrl} className="w-4 h-4 object-contain" alt="badge" />
-                          ) : (
-                            <span className="text-sm leading-none">{badgeUrl}</span>
-                          )}
-                          <span className="truncate max-w-[130px]">{currentBadge.name || currentBadge.Name}</span>
-                        </div>
+                        <UserBadge badge={currentBadge} badgeUrl={badgeUrl} />
                       )}
                     </div>
                   </div>
@@ -204,7 +180,10 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onOpenAuthModal 
                     </Link>
                     <div className="h-px bg-slate-800 my-1"></div>
                     <button
-                      onClick={onLogout}
+                      onClick={() => {
+                        onLogout();
+                        navigate('/');
+                      }}
                       className="w-full flex items-center space-x-2.5 px-4 py-2.5 text-sm text-slate-300 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
                     >
                       <LogOut className="w-4 h-4 text-rose-400" />
