@@ -134,9 +134,8 @@ export const HomePage: React.FC = () => {
         const countryQuery = country ? `&country=${country}` : '';
         const genreQuery = genre && genre !== 'ALL' ? `&genre=${encodeURIComponent(genre)}` : '';
 
-        const endpoint = query
-          ? `/anime/search?q=${encodeURIComponent(query)}&page=${page}&perPage=20${formatQuery}${countryQuery}${genreQuery}`
-          : `/anime/recent?page=${page}&perPage=20${formatQuery}${countryQuery}${genreQuery}`;
+        const qQuery = query ? `&q=${encodeURIComponent(query)}` : '';
+        const endpoint = `/anime?page=${page}&perPage=20${qQuery}${formatQuery}${countryQuery}${genreQuery}`;
 
         const res = await api.get<ApiResponse<PagedResult<Anime>>>(endpoint);
         if (res.data.success && res.data.data) {

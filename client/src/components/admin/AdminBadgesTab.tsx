@@ -31,7 +31,7 @@ export const AdminBadgesTab: React.FC = () => {
   const fetchBadges = async () => {
     setLoading(true);
     try {
-      const res = await api.get<ApiResponse<BadgeItem[]>>('/admin/badges');
+      const res = await api.get<ApiResponse<BadgeItem[]>>('/Badges');
       if (res.data.success) {
         setBadges(res.data.data || []);
       }
@@ -70,7 +70,7 @@ export const AdminBadgesTab: React.FC = () => {
   const handleDeleteBadge = async (id: string) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa huy hiệu này không?')) return;
     try {
-      const res = await api.delete<ApiResponse<any>>(`/admin/badges/${id}`);
+      const res = await api.delete<ApiResponse<any>>(`/Badges/${id}`);
       if (res.data.success) {
         toast.success('Xóa huy hiệu thành công');
         fetchBadges();
@@ -125,10 +125,10 @@ export const AdminBadgesTab: React.FC = () => {
       };
 
       if (editingBadge) {
-        await api.put(`/admin/badges/${editingBadge.id}`, payload);
+        await api.put(`/Badges/${editingBadge.id}`, payload);
         toast.success('Cập nhật huy hiệu thành công!');
       } else {
-        await api.post('/admin/badges', payload);
+        await api.post('/Badges', payload);
         toast.success('Thêm huy hiệu mới thành công!');
       }
 

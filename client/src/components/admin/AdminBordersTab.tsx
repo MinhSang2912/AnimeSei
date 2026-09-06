@@ -31,7 +31,7 @@ export const AdminBordersTab: React.FC = () => {
   const fetchBorders = async () => {
     setLoading(true);
     try {
-      const res = await api.get<ApiResponse<BorderItem[]>>('/admin/borders');
+      const res = await api.get<ApiResponse<BorderItem[]>>('/Borders');
       if (res.data.success) {
         setBorders(res.data.data || []);
       }
@@ -70,7 +70,7 @@ export const AdminBordersTab: React.FC = () => {
   const handleDeleteBorder = async (id: string) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa viền này không?')) return;
     try {
-      const res = await api.delete<ApiResponse<any>>(`/admin/borders/${id}`);
+      const res = await api.delete<ApiResponse<any>>(`/Borders/${id}`);
       if (res.data.success) {
         toast.success('Xóa viền thành công');
         fetchBorders();
@@ -125,10 +125,10 @@ export const AdminBordersTab: React.FC = () => {
       };
 
       if (editingBorder) {
-        await api.put(`/admin/borders/${editingBorder.id}`, payload);
+        await api.put(`/Borders/${editingBorder.id}`, payload);
         toast.success('Cập nhật viền thành công!');
       } else {
-        await api.post('/admin/borders', payload);
+        await api.post('/Borders', payload);
         toast.success('Thêm viền mới thành công!');
       }
 

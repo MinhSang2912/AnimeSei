@@ -30,6 +30,7 @@ export const AdminPage: React.FC = () => {
   const [animeFormat, setAnimeFormat] = useState('ALL');
   const [animeCountry, setAnimeCountry] = useState('ALL');
   const [animeGenre, setAnimeGenre] = useState('ALL');
+  const [animeStatus, setAnimeStatus] = useState('ALL');
   const [animePage, setAnimePage] = useState(1);
   const [animeTotal, setAnimeTotal] = useState(0);
   const [animeLastPage, setAnimeLastPage] = useState(1);
@@ -81,8 +82,8 @@ export const AdminPage: React.FC = () => {
         const [statsRes, usersRes, badgesRes, bordersRes] = await Promise.all([
           api.get<ApiResponse<any>>('/admin/stats'),
           api.get<ApiResponse<any[]>>('/admin/users'),
-          api.get<ApiResponse<any[]>>('/admin/badges'),
-          api.get<ApiResponse<any[]>>('/admin/borders'),
+          api.get<ApiResponse<any[]>>('/Badges'),
+          api.get<ApiResponse<any[]>>('/Borders'),
         ]);
 
         if (statsRes.data.success) setStats(statsRes.data.data);
@@ -109,9 +110,10 @@ export const AdminPage: React.FC = () => {
         const formatQuery = animeFormat && animeFormat !== 'ALL' ? `&format=${animeFormat}` : '';
         const countryQuery = animeCountry && animeCountry !== 'ALL' ? `&country=${animeCountry}` : '';
         const genreQuery = animeGenre && animeGenre !== 'ALL' ? `&genre=${encodeURIComponent(animeGenre)}` : '';
+        const statusQuery = animeStatus && animeStatus !== 'ALL' ? `&status=${animeStatus}` : '';
         const searchQuery = animeSearch.trim() ? `&q=${encodeURIComponent(animeSearch.trim())}` : '';
 
-        const endpoint = `/admin/anime?page=${animePage}&perPage=12${searchQuery}${formatQuery}${countryQuery}${genreQuery}`;
+        const endpoint = `/admin/anime?page=${animePage}&perPage=12${searchQuery}${formatQuery}${countryQuery}${genreQuery}${statusQuery}`;
 
         const res = await api.get<ApiResponse<PagedResult<Anime>>>(endpoint);
         if (res.data.success && res.data.data) {
@@ -127,7 +129,7 @@ export const AdminPage: React.FC = () => {
     };
 
     fetchAnime();
-  }, [activeTab, animeSearch, animeFormat, animeCountry, animeGenre, animePage]);
+  }, [activeTab, animeSearch, animeFormat, animeCountry, animeGenre, animeStatus, animePage]);
 
   if (loading) {
     return (
@@ -213,6 +215,11 @@ export const AdminPage: React.FC = () => {
                 animeGenre={animeGenre}
                 onGenreChange={(gnr) => {
                   setAnimeGenre(gnr);
+                  setAnimePage(1);
+                }}
+                animeStatus={animeStatus}
+                onStatusChange={(st) => {
+                  setAnimeStatus(st);
                   setAnimePage(1);
                 }}
                 animePage={animePage}

@@ -1,6 +1,8 @@
 using AnimeSei.Application.Common.Interfaces;
 using AnimeSei.Application.Common.Models;
+using AnimeSei.Application.DTOs.Border;
 using AnimeSei.Domain.Entities;
+using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,17 +11,17 @@ namespace AnimeSei.API.Controllers;
 
 [ApiController]
 [Authorize(Roles = "Admin")]
-[Route("api/admin/borders")]
+[Route("api/[Controller]")]
 public class BordersController : ControllerBase
 {
     private readonly IAnimeSeiDbContext _context;
+    private readonly IMapper _mapper;
 
-    public BordersController(IAnimeSeiDbContext context)
+    public BordersController(IAnimeSeiDbContext context, IMapper mapper)
     {
         _context = context;
+        _mapper = mapper;
     }
-
-    public record BorderDto(string Name, string FrameUrl, string? ImageUrl, int RequiredPoints, string Description);
 
     [HttpGet]
     public async Task<IActionResult> GetBorders()
@@ -31,14 +33,7 @@ public class BordersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateBorder([FromBody] BorderDto dto)
     {
-        var border = new Border
-        {
-            Name = dto.Name,
-            FrameUrl = dto.FrameUrl,
-            ImageUrl = dto.ImageUrl,
-            RequiredPoints = dto.RequiredPoints,
-            Description = dto.Description
-        };
+        var border = _mapper.Map<Border>(dto);
         _context.Borders.Add(border);
         await _context.SaveChangesAsync();
         return Ok(ApiResponse<Border>.Ok(border, "Tạo viền mới thành công"));
@@ -50,11 +45,7 @@ public class BordersController : ControllerBase
         var border = await _context.Borders.FindAsync(id);
         if (border == null) return NotFound(ApiResponse<string>.Fail("Không tìm thấy viền", 404));
 
-        border.Name = dto.Name;
-        border.FrameUrl = dto.FrameUrl;
-        border.ImageUrl = dto.ImageUrl;
-        border.RequiredPoints = dto.RequiredPoints;
-        border.Description = dto.Description;
+        _mapper.Map(dto, border);
 
         await _context.SaveChangesAsync();
         return Ok(ApiResponse<Border>.Ok(border, "Cập nhật viền thành công"));

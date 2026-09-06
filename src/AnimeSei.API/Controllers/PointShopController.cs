@@ -22,23 +22,6 @@ public class PointShopController : ControllerBase
     [HttpGet("items")]
     public async Task<IActionResult> GetItems()
     {
-        // Seed default items if empty
-        if (!await _context.Badges.AnyAsync())
-        {
-            _context.Badges.AddRange(
-                new Badge { Name = "Otaku Vàng", IconUrl = "🥇", RequiredPoints = 5, Description = "Huy hiệu cho người xem trên 5 tập phim" },
-                new Badge { Name = "Vua Xem Phim", IconUrl = "👑", RequiredPoints = 10, Description = "Huy hiệu quý tộc cao cấp nhất" },
-                new Badge { Name = "Chiến Binh Anime", IconUrl = "⚔️", RequiredPoints = 3, Description = "Huy hiệu tân thủ xem phim" }
-            );
-
-            _context.Borders.AddRange(
-                new Border { Name = "Khung Neon Tím", FrameUrl = "border-purple-500", RequiredPoints = 5, Description = "Viền khung ánh sáng Neon phát sáng" },
-                new Border { Name = "Khung Rồng Vàng", FrameUrl = "border-amber-400", RequiredPoints = 8, Description = "Viền khung rồng vàng hoàng gia" }
-            );
-
-            await _context.SaveChangesAsync();
-        }
-
         var badges = await _context.Badges.ToListAsync();
         var borders = await _context.Borders.ToListAsync();
 

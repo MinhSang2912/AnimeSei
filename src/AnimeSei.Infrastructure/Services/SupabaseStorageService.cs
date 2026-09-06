@@ -17,12 +17,11 @@ public class SupabaseStorageService : ISupabaseStorageService
     {
         var supabaseUrl = _config["Supabase:Url"];
         var supabaseKey = _config["Supabase:Key"];
-        var bucketName = _config["Supabase:Bucket"] ?? "avatars";
+        var bucketName = (_config["Supabase:Bucket"] ?? "avatars").ToLower();
 
         if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseKey) || supabaseUrl.Contains("YOUR_SUPABASE"))
         {
-            // Placeholder fallback when Supabase keys are not set yet
-            return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
+            throw new Exception("Cấu hình Supabase Url hoặc Key chưa đúng trong appsettings.json");
         }
 
         try
@@ -37,7 +36,8 @@ public class SupabaseStorageService : ISupabaseStorageService
             await client.InitializeAsync();
 
             var extension = Path.GetExtension(fileName);
-            var path = $"avatars/{userId}_{DateTime.UtcNow.Ticks}{extension}";
+            if (string.IsNullOrEmpty(extension)) extension = ".png";
+            var path = $"{userId}_{DateTime.UtcNow.Ticks}{extension}";
 
             using var memoryStream = new MemoryStream();
             await fileStream.CopyToAsync(memoryStream);
@@ -51,10 +51,10 @@ public class SupabaseStorageService : ISupabaseStorageService
 
             return client.Storage.From(bucketName).GetPublicUrl(path);
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback for dev / offline placeholder avatar URL
-            return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
+            Console.WriteLine($"[SupabaseAvatarUploadError] Upload failed to bucket '{bucketName}': {ex}");
+            throw new Exception($"Không thể tải ảnh avatar lên Supabase Storage (Bucket: '{bucketName}'). Chi tiết: {ex.Message}");
         }
     }
 

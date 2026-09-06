@@ -9,29 +9,16 @@ namespace AnimeSei.API.Controllers;
 [Route("api/[controller]")]
 public class AnimeController : ControllerBase
 {
-    private readonly IAniListService _aniListService;
+    private readonly IAnimeService _animeService;
 
-    public AnimeController(IAniListService aniListService)
+    public AnimeController(IAnimeService animeService)
     {
-        _aniListService = aniListService;
+        _animeService = animeService;
     }
 
-    [HttpGet("recent")]
-    public async Task<IActionResult> GetRecent(
-        [FromQuery] int page = 1,
-        [FromQuery] int perPage = 20,
-        [FromQuery] string? format = "TV",
-        [FromQuery] bool? is3D = null,
-        [FromQuery] string? country = "JP",
-        [FromQuery] string? genre = null)
-    {
-        var result = await _aniListService.GetRecentAnimeAsync(page, perPage, format, is3D, country, genre);
-        return Ok(ApiResponse<PagedResult<AnimeCache>>.Ok(result, "Lấy danh sách anime ra mắt gần đây nhất thành công"));
-    }
-
-    [HttpGet("search")]
-    public async Task<IActionResult> Search(
-        [FromQuery] string q,
+    [HttpGet]
+    public async Task<IActionResult> GetList(
+        [FromQuery] string? q = null,
         [FromQuery] int page = 1,
         [FromQuery] int perPage = 20,
         [FromQuery] string? format = null,
@@ -39,19 +26,14 @@ public class AnimeController : ControllerBase
         [FromQuery] string? country = null,
         [FromQuery] string? genre = null)
     {
-        if (string.IsNullOrWhiteSpace(q))
-        {
-            return await GetRecent(page, perPage, format, is3D, country, genre);
-        }
-
-        var result = await _aniListService.SearchAnimeAsync(q, page, perPage, format, is3D, country, genre);
-        return Ok(ApiResponse<PagedResult<AnimeCache>>.Ok(result, "Tìm kiếm anime thành công"));
+        var result = await _animeService.GetAnimeListAsync(q, page, perPage, format, is3D, country, genre);
+        return Ok(ApiResponse<PagedResult<AnimeCache>>.Ok(result, "Lấy danh sách anime thành công"));
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var anime = await _aniListService.GetAnimeByIdAsync(id);
+        var anime = await _animeService.GetAnimeByIdAsync(id);
         if (anime == null)
         {
             return NotFound(ApiResponse<AnimeCache?>.Fail("Không tìm thấy bộ phim này", 404));

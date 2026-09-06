@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Anime, ApiResponse } from '../types/anime';
 import { formatAnimeStatus } from '../utils/status';
-import { Star, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar, Search } from 'lucide-react';
+import { Star, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar, Search, User as UserIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface AnimeDetailPageProps {
@@ -21,6 +21,9 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
   const [postingComment, setPostingComment] = useState(false);
   const [isTrailerValid, setIsTrailerValid] = useState(false);
   const [episodeSearch, setEpisodeSearch] = useState('');
+  
+  // Modal state for avatar viewing
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!anime?.trailerId || anime.trailerSite?.toLowerCase() !== 'youtube') {
@@ -411,21 +414,128 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
                 {comments.length === 0 ? (
                   <p className="text-xs text-slate-500 italic">Chưa có bình luận nào. Hãy là người đầu tiên bình luận!</p>
                 ) : (
-                  comments.map((c) => (
-                    <div key={c.id} className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-purple-300 text-xs">{c.user?.username || 'Thành viên'}</span>
-                        <span className="text-[10px] text-slate-500">{new Date(c.createdAt).toLocaleDateString('vi-VN')}</span>
+                  comments.map((c) => {
+                    const cBadge = c.user?.currentBadge || c.user?.CurrentBadge;
+                    const cBorder = c.user?.currentBorder || c.user?.CurrentBorder;
+                    const cFrameUrl = cBorder?.imageUrl || cBorder?.ImageUrl || cBorder?.frameUrl || cBorder?.FrameUrl;
+                    const cIsImageBorder = cFrameUrl?.startsWith('http') || cFrameUrl?.startsWith('/');
+                    const cFrameClass = cIsImageBorder ? 'border-transparent' : (cFrameUrl || 'border-slate-700');
+                    const cBadgeUrl = cBadge?.imageUrl || cBadge?.ImageUrl || cBadge?.iconUrl || cBadge?.IconUrl;
+
+                    return (
+                      <div key={c.id} className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex gap-4">
+                        
+                        {/* Avatar Column with Hover Card Trigger */}
+                        <div className="flex flex-col items-center flex-shrink-0 pt-1 relative group/usercard">
+                          
+                          {/* Basic small avatar on the comment */}
+                          <button 
+                            type="button"
+                            onClick={() => setSelectedAvatarUrl(c.user?.avatarUrl || c.user?.AvatarUrl || null)}
+                            className={`relative w-10 h-10 rounded-full border-2 ${cFrameClass} overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer shadow-sm`}
+                          >
+                            {c.user?.avatarUrl || c.user?.AvatarUrl ? (
+                              <img src={c.user.avatarUrl || c.user.AvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <UserIcon className="w-5 h-5 text-slate-400" />
+                            )}
+                          </button>
+                          
+                          {/* Tiny Border Frame on the comment avatar */}
+                          {cIsImageBorder && (
+                            <img 
+                              src={cFrameUrl} 
+                              alt="Border Frame" 
+                              className="absolute -inset-1.5 w-[calc(100%+0.75rem)] h-[calc(100%+0.75rem)] max-w-none pointer-events-none drop-shadow-sm z-10" 
+                            />
+                          )}
+
+                          {/* Hover Popover Card */}
+                          <div className="absolute left-full bottom-0 ml-4 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover/usercard:opacity-100 group-hover/usercard:visible transition-all duration-200 transform translate-x-2 group-hover/usercard:translate-x-0 z-[60] overflow-hidden">
+                            <div className="p-5 bg-slate-900/50 flex flex-col items-center justify-center space-y-3 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+                              
+                              {/* Large Avatar in Modal */}
+                              <div className="relative group/avatar">
+                                <button 
+                                  type="button"
+                                  onClick={() => setSelectedAvatarUrl(c.user?.avatarUrl || c.user?.AvatarUrl || null)}
+                                  className={`relative z-0 w-16 h-16 rounded-full border-2 ${cFrameClass} overflow-hidden bg-slate-800 flex items-center justify-center shadow-lg group-hover/avatar:scale-105 transition-transform duration-300 cursor-pointer`}
+                                >
+                                  {c.user?.avatarUrl || c.user?.AvatarUrl ? (
+                                    <img src={c.user.avatarUrl || c.user.AvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <UserIcon className="w-8 h-8 text-slate-400" />
+                                  )}
+                                </button>
+                                
+                                {cIsImageBorder && (
+                                  <img 
+                                    src={cFrameUrl} 
+                                    alt="Border Frame" 
+                                    className="absolute -inset-2.5 w-[calc(100%+1.25rem)] h-[calc(100%+1.25rem)] max-w-none pointer-events-none drop-shadow-lg z-10" 
+                                  />
+                                )}
+                              </div>
+
+                              <div className="text-center relative z-10 flex flex-col items-center">
+                                <span className="font-bold text-white text-base">{c.user?.username || 'Thành viên'}</span>
+                                
+                                {cBadge && (
+                                  <div className="mt-2 flex items-center justify-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                                    {cBadgeUrl?.startsWith('http') ? (
+                                      <img src={cBadgeUrl} className="w-4 h-4 object-contain" alt="badge" />
+                                    ) : (
+                                      <span className="leading-none text-xs">{cBadgeUrl}</span>
+                                    )}
+                                    <span className="truncate max-w-[130px]">{cBadge.name || cBadge.Name}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Content Column */}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-purple-300 text-sm cursor-pointer hover:underline">{c.user?.username || 'Thành viên'}</span>
+                            <span className="text-[10px] text-slate-500">{new Date(c.createdAt).toLocaleDateString('vi-VN')}</span>
+                          </div>
+                          <p className="text-slate-200 text-sm mt-1 leading-relaxed">{c.content}</p>
+                        </div>
                       </div>
-                      <p className="text-slate-200 text-sm">{c.content}</p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Avatar Modal */}
+      {selectedAvatarUrl && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedAvatarUrl(null)}
+        >
+          <div className="relative max-w-lg w-full aspect-square flex items-center justify-center">
+            <img 
+              src={selectedAvatarUrl} 
+              alt="Avatar Full" 
+              className="max-w-full max-h-full rounded-2xl shadow-2xl shadow-purple-500/20 object-contain animate-in zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button 
+              onClick={() => setSelectedAvatarUrl(null)}
+              className="absolute -top-12 right-0 md:-right-12 p-2 bg-slate-900/50 hover:bg-rose-500/80 text-white rounded-full backdrop-blur-md transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

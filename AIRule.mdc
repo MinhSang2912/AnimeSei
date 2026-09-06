@@ -1,0 +1,123 @@
+---
+description: Quy tắc phát triển, chuẩn kiến trúc và công nghệ cho hệ thống AnimeSei (ASP.NET Core Web API + ReactJS + Supabase)
+globs: "**/*"
+alwaysApply: true
+---
+
+# AI Rules - AnimeSei Project Guidelines
+
+## 1. Về hệ thống & Nghiệp vụ
+Xây dựng hệ thống website xem phim anime sử dụng dữ liệu từ AniList API (https://anilist.co/docs/api).
+- **AniList Cache Layer:** Không gọi trực tiếp AniList API từ Client. Backend đóng vai trò lớp trung gian (proxy), thực hiện cache dữ liệu (dùng `IMemoryCache`/`IDistributedCache` + Hangfire Job đồng bộ định kỳ) và cung cấp API ra bên ngoài.
+
+**Các tính năng cốt lõi:**
+- **Khách (Public):** Xem phim, tìm kiếm, xem danh sách, lọc (filter) anime, xem thông tin chi tiết.
+- **Thành viên (Đăng nhập với JWT):**
+  - Đăng ký, đăng nhập (Xác thực Email & Mật khẩu, có hỗ trợ Refresh Token).
+  - Quản lý & chỉnh sửa thông tin cá nhân, tải ảnh avatar (Lưu trữ trên Supabase Storage).
+  - Lịch sử xem phim & Lưu tiến trình xem phim (phút, giây) để xem tiếp tập phim đang dở.
+  - Tích lũy điểm thưởng: Xem tối thiểu 19 phút/tập phim nhận 1 điểm.
+  - Cửa hàng điểm: Dùng điểm mua viền avatar (borders) và huy hiệu (badges) hiển thị trên tên và avatar.
+  - Bình luận (Comment) và đánh giá (Rate) bộ phim.
+- **Quản trị viên (Admin Dashboard):**
+  - Quản lý danh sách người dùng.
+  - Quản lý danh sách phim (ảnh bìa, nhấp vào xem chi tiết, thống kê lượt xem).
+  - Thống kê tổng thể (tổng người dùng, tổng số phim, thống kê lượt xem).
+- **Giao diện (UI/UX):** Tối ưu đẹp mắt, màu chủ đạo tông tối (Dark Mode phù hợp xem phim), hỗ trợ chuyển đổi giao diện Sáng/Tối (Light/Dark Theme).
+
+---
+
+## 2. Kiến trúc Hệ thống (System Architecture)
+
+### 2.1 Backend (ASP.NET Core Web API)
+- Thiết kế theo kiến trúc **Clean Architecture / N-Tier Architecture**:
+  - `AnimeSei.Domain`: Chứa Entities, Enums, Value Objects, Domain Interfaces (không phụ thuộc layer khác).
+  - `AnimeSei.Application`: Chứa Business Logic, MediatR Commands/Queries, DTOs, FluentValidation, Interfaces.
+  - `AnimeSei.Infrastructure`: Chứa EF Core DbContext, Repositories, Supabase Client & Storage Integration, AniList GraphQL Client, Hangfire Jobs, Serilog.
+  - `AnimeSei.API`: Controllers, Middlewares, SignalR Hubs, Swagger Configuration.
+- Phân tách rõ ràng giữa các Layer, truyền nhận dữ liệu qua DTO.
+- Phân luồng API: Luồng Public (không cần Token) và Luồng Authenticated (yêu cầu Bearer Token).
+- **CORS Policy:** Cấu hình chuẩn CORS cho phép các nguồn Client được chỉ định truy cập API.
+
+### 2.2 Frontend (ReactJS)
+- Áp dụng **Clean Architecture / Feature-based Architecture** cho React:
+  - `src/components`: UI components dùng chung (Buttons, Inputs, Modals, VideoPlayer...).
+  - `src/features`: Phân chia theo module nghiệp vụ (auth, anime, watch-history, profile, admin...).
+  - `src/store`: Quản lý Redux Toolkit Slices.
+  - `src/services`: Đóng gói các hàm gọi API bằng Axios.
+  - `src/routes`: Định tuyến với React Router.
+
+---
+
+## 3. Quy chuẩn đặt tên (Naming Conventions)
+- **Backend (C#):**
+  - `PascalCase` cho Class, Interface (`IAnimeService`), Method, Enum, Property.
+  - `_camelCase` cho private readonly fields (VD: `private readonly IMediator _mediator;`).
+  - `camelCase` cho tham số và biến cục bộ.
+- **Frontend (React/JS/TS):**
+  - `PascalCase` cho React Components (`AnimeCard.tsx`), Pages, Interfaces/Types.
+  - `camelCase` cho custom hooks (`useAuth.ts`), helper functions, variables.
+  - `UPPER_SNAKE_CASE` cho hằng số (`API_BASE_URL`).
+
+---
+
+## 4. Công nghệ & Thư viện sử dụng
+
+### 4.1 Backend
+- **Framework:** ASP.NET Core (.NET 8+) Web API.
+- **CQRS / Request Handling:** [MediatR](https://github.com/jbogard/MediatR)
+- **Validation:** [FluentValidation](https://github.com/fluentvalidation/fluentvalidation)
+- **Mapping:** [AutoMapper](https://github.com/AutoMapper/AutoMapper)
+- **API Documentation:** [Swagger / Swashbuckle](https://github.com/swagger-api/swagger-ui)
+- **Authentication & Authorization:** JWT Access Token + Refresh Token (Xác thực phân quyền Role-based / Claim-based).
+- **Background Jobs & Cache Sync:** [Hangfire](https://github.com/HangfireIO/Hangfire)
+- **Logging:** [Serilog](https://github.com/serilog/serilog) (Log xuất ra Console & File)
+- **Realtime Notifications:** SignalR (thông báo realtime khi đạt điểm, cập nhật huy hiệu, thông báo hệ thống)
+- **Database Access:** Entity Framework Core (Provider: `Npgsql.EntityFrameworkCore.PostgreSQL` kết nối Supabase) + LINQ.
+- **File & Storage Service:** **Supabase Storage C# SDK** (`supabase-csharp`) hoặc REST API để lưu trữ và quản lý file.
+- **Async/Await:** Bắt buộc 100% các hàm I/O dùng `async`/`await` và xử lý lỗi chặt chẽ.
+- **API Response Wrapper:** Tất cả API trả về cấu trúc chuẩn:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "message": "Thao tác thành công",
+    "data": { ... },
+    "errors": null
+  }
+  ```
+- **Error Handling & Messages:** Xử lý đầy đủ các HTTP Error Status Codes (400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 500 Internal Error). Sử dụng `#region` trong các file Message hằng số để dễ quản lý thông báo.
+
+### 4.2 Frontend
+- **Library:** ReactJS (JavaScript / TypeScript).
+- **HTTP Client:** [Axios](https://github.com/axios/axios) tích hợp Interceptors (tự động gắn Bearer Token, bắt lỗi 401 để tự động gọi API Refresh Token gia hạn phiên đăng nhập).
+- **State Management:** Redux Toolkit.
+- **Routing:** React Router DOM.
+- **Styling:** Tailwind CSS.
+- **Video Player:** HTML5 Video Player tích hợp `Hls.js` / `Video.js` hỗ trợ phát video định dạng HLS (`.m3u8`) hoặc MP4, kết hợp theo dõi thời gian thực tiến trình xem (phút, giây).
+- **UI Feedback:** Toast notifications (React Hot Toast / React Toastify).
+- **State Update:** Cập nhật UI tức thì (Optimistic Updates) hoặc re-fetch API lấy dữ liệu mới nhất.
+
+---
+
+## 5. Cơ sở dữ liệu, Lưu trữ & Bảo mật (Database, Storage & Security)
+
+### 5.1 Database & Migrations
+- **Database Platform:** **Supabase (PostgreSQL)**.
+- **ORM:** Entity Framework Core với PostgreSQL provider (`Npgsql`).
+- **Migrations:** Quản lý thay đổi Schema DB bằng EF Core Migrations (`dotnet ef migrations add`, `dotnet ef database update`).
+
+### 5.2 Storage Service
+- **File & Image Storage:** **Supabase Storage** (Dùng Bucket để upload, quản lý và lấy URL công khai cho Avatar người dùng, ảnh bìa phim, huy hiệu, viền khung).
+
+### 5.3 Bảo mật & Biến Môi Trường (Security & Environment Variables)
+- **Không hardcode thông tin nhạy cảm:** Tuyệt đối không lưu Supabase Connection String, JWT Secret Key, Supabase Service Key trực tiếp trong nguồn mã nguồn hoặc commit lên Git.
+- **Quản lý Cấu hình:**
+  - Backend: Sử dụng `appsettings.json`, `appsettings.Development.json` hoặc Environment Variables.
+  - Frontend: Sử dụng file `.env` (ví dụ `VITE_API_BASE_URL`).
+
+### 5.4 Containerization & Triển khai (Docker & Docker Compose)
+- **Backend Container:** Viết `Dockerfile` dạng Multi-stage build cho ASP.NET Core Web API (sử dụng .NET 8 SDK để build và .NET 8 ASP.NET Runtime tinh gọn để thực thi).
+- **Frontend Container:** Viết `Dockerfile` đóng gói ứng dụng ReactJS (sử dụng Nginx Alpine container để phục vụ static file đã build).
+- **Docker Compose:** Sử dụng file `docker-compose.yml` để orchestrate và chạy đồng thời các dịch vụ (Backend API, Frontend App) giúp nhất quán môi trường Development và Production.
+

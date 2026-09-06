@@ -6,12 +6,12 @@ namespace AnimeSei.Infrastructure.BackgroundServices;
 
 public class AniListAutoSyncWorker : BackgroundService
 {
-    private readonly IAniListService _aniListService;
+    private readonly IAnimeService _animeService;
     private readonly ILogger<AniListAutoSyncWorker> _logger;
 
-    public AniListAutoSyncWorker(IAniListService aniListService, ILogger<AniListAutoSyncWorker> logger)
+    public AniListAutoSyncWorker(IAnimeService animeService, ILogger<AniListAutoSyncWorker> logger)
     {
-        _aniListService = aniListService;
+        _animeService = animeService;
         _logger = logger;
     }
 
@@ -37,7 +37,7 @@ public class AniListAutoSyncWorker : BackgroundService
             {
                 try
                 {
-                    await _aniListService.SyncIncrementalAnimeAsync(stoppingToken);
+                    await _animeService.SyncSeasonalAnimeAsync(2000, DateTime.UtcNow.Year + 1, stoppingToken);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {

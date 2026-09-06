@@ -1,5 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using AutoMapper;
+
 using AnimeSei.Application.Common.Interfaces;
 using AnimeSei.Application.Common.Models;
 using AnimeSei.Domain.Entities;
@@ -9,120 +11,23 @@ using Microsoft.Extensions.Logging;
 
 namespace AnimeSei.Infrastructure.Services;
 
-public class AniListService : IAniListService
+public class AnimeService : IAnimeService
 {
     private readonly HttpClient _httpClient;
-    private readonly ILogger<AniListService> _logger;
+    private readonly ILogger<AnimeService> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IMapper _mapper;
 
-    public AniListService(HttpClient httpClient, ILogger<AniListService> logger, IServiceProvider serviceProvider)
+    public AnimeService(HttpClient httpClient, ILogger<AnimeService> logger, IServiceProvider serviceProvider, IMapper mapper)
     {
         _httpClient = httpClient;
         _logger = logger;
         _serviceProvider = serviceProvider;
+        _mapper = mapper;
     }
 
-    public async Task<PagedResult<AnimeCache>> GetRecentAnimeAsync(
-        int page = 1,
-        int perPage = 20,
-        string? format = null,
-        bool? is3D = null,
-        string? country = null,
-        string? genre = null,
-        CancellationToken cancellationToken = default)
-    {
-        bool hasFormat = !string.IsNullOrWhiteSpace(format) && !string.Equals(format, "ALL", StringComparison.OrdinalIgnoreCase);
-        bool hasCountry = !string.IsNullOrWhiteSpace(country) && !string.Equals(country, "ALL", StringComparison.OrdinalIgnoreCase);
-        bool hasGenre = !string.IsNullOrWhiteSpace(genre) && !string.Equals(genre, "ALL", StringComparison.OrdinalIgnoreCase);
-
-        try
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<IAnimeSeiDbContext>();
-            var todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
-            var queryable = dbContext.AnimeCaches
-                .Where(a => a.Status != "NOT_YET_RELEASED" && a.Status != "CANCELLED" && (a.StartDate == null || string.Compare(a.StartDate, todayStr) <= 0))
-                .Where(a => !a.Genres.Contains("Hentai") && (a.Format == null || a.Format.ToUpper() != "MUSIC"));
-
-            if (hasFormat)
-            {
-                var fmtUpper = format!.ToUpper();
-                queryable = queryable.Where(a => a.Format != null && a.Format.ToUpper() == fmtUpper);
-            }
-            if (hasCountry)
-            {
-                var countryUpper = country!.ToUpper();
-                queryable = queryable.Where(a => a.CountryOfOrigin != null && a.CountryOfOrigin.ToUpper() == countryUpper);
-            }
-            if (hasGenre)
-            {
-                queryable = queryable.Where(a => a.Genres.Contains(genre!));
-            }
-            if (is3D.HasValue)
-            {
-                queryable = queryable.Where(a => a.Is3D == is3D.Value);
-            }
-
-            // Backfill / fix missing or future LastAiredAt in DB before running SQL queries
-            var nowUtc = DateTime.UtcNow;
-            var needsFixInDb = await dbContext.AnimeCaches
-                .Where(a => a.LastAiredAt == null || a.LastAiredAt > nowUtc)
-                .ToListAsync(cancellationToken);
-
-            if (needsFixInDb.Count > 0)
-            {
-                foreach (var a in needsFixInDb)
-                {
-                    EnsureLastAiredAt(a);
-                }
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-
-            int totalCount = await queryable.CountAsync(cancellationToken);
-            if (totalCount == 0)
-            {
-                return new PagedResult<AnimeCache>
-                {
-                    Items = new List<AnimeCache>(),
-                    CurrentPage = 1,
-                    LastPage = 1,
-                    Total = 0,
-                    HasNextPage = false
-                };
-            }
-
-            int exactLastPage = (int)Math.Ceiling((double)totalCount / perPage);
-            int safePage = Math.Max(1, Math.Min(page, exactLastPage));
-
-            var items = await queryable
-                .OrderByDescending(a => a.LastAiredAt)
-                .ThenByDescending(a => a.EndDate)
-                .ThenByDescending(a => a.StartDate)
-                .ThenByDescending(a => a.Id)
-                .Skip((safePage - 1) * perPage)
-                .Take(perPage)
-                .ToListAsync(cancellationToken);
-
-            items.ForEach(EnsureLastAiredAt);
-
-            return new PagedResult<AnimeCache>
-            {
-                Items = items,
-                CurrentPage = safePage,
-                LastPage = exactLastPage,
-                Total = totalCount,
-                HasNextPage = safePage < exactLastPage
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error querying database for recent anime");
-            return new PagedResult<AnimeCache> { Items = new List<AnimeCache>(), CurrentPage = 1, LastPage = 1, Total = 0, HasNextPage = false };
-        }
-    }
-
-    public async Task<PagedResult<AnimeCache>> SearchAnimeAsync(
-        string search,
+    public async Task<PagedResult<AnimeCache>> GetAnimeListAsync(
+        string? search = null,
         int page = 1,
         int perPage = 20,
         string? format = null,
@@ -172,20 +77,7 @@ public class AniListService : IAniListService
                 queryable = queryable.Where(a => a.Is3D == is3D.Value);
             }
 
-            // Backfill / fix missing or future LastAiredAt in DB before running SQL queries
-            var nowUtc = DateTime.UtcNow;
-            var needsFixInDb = await dbContext.AnimeCaches
-                .Where(a => a.LastAiredAt == null || a.LastAiredAt > nowUtc)
-                .ToListAsync(cancellationToken);
 
-            if (needsFixInDb.Count > 0)
-            {
-                foreach (var a in needsFixInDb)
-                {
-                    EnsureLastAiredAt(a);
-                }
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
 
             int totalCount = await queryable.CountAsync(cancellationToken);
             if (totalCount == 0)
@@ -225,7 +117,7 @@ public class AniListService : IAniListService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error searching database for anime");
+            _logger.LogError(ex, "Error fetching list from database for anime");
             return new PagedResult<AnimeCache> { Items = new List<AnimeCache>(), CurrentPage = 1, LastPage = 1, Total = 0, HasNextPage = false };
         }
     }
@@ -378,10 +270,7 @@ public class AniListService : IAniListService
         }
     }
 
-    private static bool IsSensitiveOrAdult(JsonElement media)
-    {
-        return false;
-    }
+
 
     private static AnimeCache MapMediaToAnimeCache(JsonElement media)
     {
@@ -699,9 +588,7 @@ public class AniListService : IAniListService
 
                             foreach (var media in mediaArray.EnumerateArray())
                             {
-                                if (!IsSensitiveOrAdult(media))
-                                {
-                                    var item = MapMediaToAnimeCache(media);
+                                var item = MapMediaToAnimeCache(media);
                                     if (!string.IsNullOrEmpty(item.TitleRomaji) && sampleTitles.Count < 3)
                                     {
                                         sampleTitles.Add(item.TitleRomaji);
@@ -714,30 +601,11 @@ public class AniListService : IAniListService
                                     }
                                     else
                                     {
-                                        existing.TitleRomaji = item.TitleRomaji;
-                                        existing.TitleEnglish = item.TitleEnglish;
-                                        existing.TitleNative = item.TitleNative;
-                                        existing.CoverImage = item.CoverImage;
-                                        existing.BannerImage = item.BannerImage;
-                                        existing.Episodes = item.Episodes;
-                                        existing.CurrentEpisodes = item.CurrentEpisodes;
-                                        existing.Status = item.Status;
-                                        existing.Format = item.Format;
-                                        existing.CountryOfOrigin = item.CountryOfOrigin;
-                                        existing.Is3D = item.Is3D;
-                                        existing.Genres = item.Genres;
-                                        existing.AverageScore = item.AverageScore;
-                                        existing.SeasonYear = item.SeasonYear;
-                                        existing.StartDate = item.StartDate;
-                                        existing.EndDate = item.EndDate;
-                                        existing.LastAiredAt = item.LastAiredAt;
-                                        existing.TrailerSite = item.TrailerSite;
-                                        existing.TrailerId = item.TrailerId;
+                                        _mapper.Map(item, existing);
                                         existing.LastSyncedAt = DateTime.UtcNow;
                                     }
                                     pageSyncedCount++;
                                     totalSynced++;
-                                }
                             }
                             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -763,12 +631,5 @@ public class AniListService : IAniListService
 
         _logger.LogInformation("Completed yearly anime sync. Total items synced: {TotalSynced}", totalSynced);
         return totalSynced;
-    }
-
-    public async Task<int> SyncIncrementalAnimeAsync(CancellationToken cancellationToken = default)
-    {
-        // Background sync fetches all anime from year 2000 to current year without filtering/max date comparison
-        int currentYear = DateTime.UtcNow.Year;
-        return await SyncSeasonalAnimeAsync(2000, DateTime.UtcNow.Year+1, cancellationToken);
     }
 }

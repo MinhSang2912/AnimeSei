@@ -44,6 +44,15 @@ const FORMATS = [
   { value: 'ONA', label: 'ONA' },
 ];
 
+const STATUSES = [
+  { value: 'ALL', label: 'Tất cả trạng thái' },
+  { value: 'RELEASING', label: 'Đang phát sóng' },
+  { value: 'FINISHED', label: 'Đã hoàn thành' },
+  { value: 'NOT_YET_RELEASED', label: 'Sắp ra mắt' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+  { value: 'HIATUS', label: 'Tạm hoãn' },
+];
+
 interface CustomSelectProps {
   value: string;
   options: { value: string; label: string }[];
@@ -121,6 +130,8 @@ interface AdminAnimeTabProps {
   onCountryChange: (cnt: string) => void;
   animeGenre: string;
   onGenreChange: (gnr: string) => void;
+  animeStatus: string;
+  onStatusChange: (status: string) => void;
   animePage: number;
   onPageChange: (page: number) => void;
   animeTotal: number;
@@ -139,6 +150,8 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
   onCountryChange,
   animeGenre,
   onGenreChange,
+  animeStatus,
+  onStatusChange,
   animePage,
   onPageChange,
   animeTotal,
@@ -204,7 +217,15 @@ export const AdminAnimeTab: React.FC<AdminAnimeTabProps> = ({
             value={animeGenre}
             options={genreOptions}
             onChange={onGenreChange}
-            minWidth="w-48"
+            minWidth="w-44"
+          />
+
+          {/* Status Filter */}
+          <CustomSelect
+            value={animeStatus}
+            options={STATUSES}
+            onChange={onStatusChange}
+            minWidth="w-44"
           />
 
           {/* Country Filter */}

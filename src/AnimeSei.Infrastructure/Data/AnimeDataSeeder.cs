@@ -45,10 +45,10 @@ public static class AnimeDataSeeder
             {
                 logger.LogInformation("🚀 Database is empty! Starting AnimeDataSeeder to fetch and populate Anime into Database...");
                 
-                var aniListService = scope.ServiceProvider.GetRequiredService<IAniListService>();
+                var animeService = scope.ServiceProvider.GetRequiredService<IAnimeService>();
                 
                 // Seed anime from years 2010 to 2026 across all seasons (Winter, Spring, Summer, Fall)
-                int syncedCount = await aniListService.SyncSeasonalAnimeAsync(startYear: 2010, endYear: 2026, cancellationToken);
+                int syncedCount = await animeService.SyncSeasonalAnimeAsync(startYear: 2010, endYear: 2026, cancellationToken);
                 
                 logger.LogInformation("✅ AnimeDataSeeder completed successfully! Total anime seeded into Database: {Count}", syncedCount);
             }

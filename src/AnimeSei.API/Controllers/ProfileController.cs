@@ -1,9 +1,7 @@
 using AnimeSei.Application.Common.Interfaces;
 using AnimeSei.Application.Common.Models;
 using AnimeSei.Application.DTOs.Profile;
-using AnimeSei.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace AnimeSei.API.Controllers;
 
@@ -11,13 +9,11 @@ namespace AnimeSei.API.Controllers;
 [Route("api/[controller]")]
 public class ProfileController : ControllerBase
 {
-    private readonly IAnimeSeiDbContext _context;
-    private readonly ISupabaseStorageService _storageService;
+    private readonly IProfileService _profileService;
 
-    public ProfileController(IAnimeSeiDbContext context, ISupabaseStorageService storageService)
+    public ProfileController(IProfileService profileService)
     {
-        _context = context;
-        _storageService = storageService;
+        _profileService = profileService;
     }
 
     [HttpGet]
@@ -29,34 +25,10 @@ public class ProfileController : ControllerBase
             return Unauthorized(ApiResponse<string>.Fail("Vui lòng đăng nhập", 401));
         }
 
-        var user = await _context.Users
-            .Include(u => u.Inventories)
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        var profileData = await _profileService.GetProfileAsync(userId);
+        if (profileData == null) return NotFound(ApiResponse<string>.Fail("Không tìm thấy người dùng", 404));
 
-        if (user == null) return NotFound(ApiResponse<string>.Fail("Không tìm thấy người dùng", 404));
-
-        var currentBadge = user.CurrentBadgeId.HasValue ? await _context.Badges.FindAsync(user.CurrentBadgeId.Value) : null;
-        var currentBorder = user.CurrentBorderId.HasValue ? await _context.Borders.FindAsync(user.CurrentBorderId.Value) : null;
-
-        var inventoryItemIds = user.Inventories.Select(i => i.ItemId).ToList();
-        var ownedBadges = await _context.Badges.Where(b => inventoryItemIds.Contains(b.Id)).ToListAsync();
-        var ownedBorders = await _context.Borders.Where(b => inventoryItemIds.Contains(b.Id)).ToListAsync();
-
-        var profileData = new
-        {
-            user.Id,
-            user.Username,
-            user.Email,
-            user.Role,
-            user.Points,
-            user.AvatarUrl,
-            CurrentBadge = currentBadge,
-            CurrentBorder = currentBorder,
-            OwnedBadges = ownedBadges,
-            OwnedBorders = ownedBorders
-        };
-
-        return Ok(ApiResponse<object>.Ok(profileData, "Lấy thông tin cá nhân thành công"));
+        return Ok(ApiResponse<UserProfileDto>.Ok(profileData, "Lấy thông tin cá nhân thành công"));
     }
 
     [HttpPost("upload-avatar")]
@@ -73,14 +45,10 @@ public class ProfileController : ControllerBase
             return BadRequest(ApiResponse<string>.Fail("Vui lòng chọn file hình ảnh", 400));
         }
 
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return NotFound(ApiResponse<string>.Fail("Không tìm thấy người dùng", 404));
-
         using var stream = file.OpenReadStream();
-        var avatarUrl = await _storageService.UploadAvatarAsync(userId, stream, file.FileName, file.ContentType);
+        var avatarUrl = await _profileService.UploadAvatarAsync(userId, stream, file.FileName, file.ContentType);
 
-        user.AvatarUrl = avatarUrl;
-        await _context.SaveChangesAsync();
+        if (avatarUrl == null) return NotFound(ApiResponse<string>.Fail("Không tìm thấy người dùng", 404));
 
         return Ok(ApiResponse<object>.Ok(new { avatarUrl }, "Tải ảnh avatar lên Supabase Storage thành công!"));
     }
@@ -94,19 +62,54 @@ public class ProfileController : ControllerBase
             return Unauthorized(ApiResponse<string>.Fail("Vui lòng đăng nhập", 401));
         }
 
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return NotFound(ApiResponse<string>.Fail("Không tìm thấy người dùng", 404));
+        var success = await _profileService.EquipItemAsync(userId, request);
+        if (!success) return NotFound(ApiResponse<string>.Fail("Không tìm thấy người dùng", 404));
 
-        if (request.ItemType == ItemType.Badge)
-        {
-            user.CurrentBadgeId = request.ItemId;
-        }
-        else
-        {
-            user.CurrentBorderId = request.ItemId;
-        }
-
-        await _context.SaveChangesAsync();
         return Ok(ApiResponse<string>.Ok("Trang bị vật phẩm thành công!"));
+    }
+
+    [HttpPut]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequestDto request)
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(ApiResponse<string>.Fail("Vui lòng đăng nhập", 401));
+        }
+
+        var (isSuccess, errorMessage, updatedUser) = await _profileService.UpdateProfileAsync(userId, request);
+        
+        if (!isSuccess)
+        {
+            if (errorMessage == "Không tìm thấy người dùng") return NotFound(ApiResponse<string>.Fail(errorMessage, 404));
+            return BadRequest(ApiResponse<string>.Fail(errorMessage, 400));
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { updatedUser!.Username, updatedUser.Email }, "Cập nhật thông tin thành công"));
+    }
+
+    [HttpPut("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
+    {
+        if (request.NewPassword != request.ConfirmPassword)
+        {
+            return BadRequest(ApiResponse<string>.Fail("Mật khẩu xác nhận không khớp", 400));
+        }
+        
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(ApiResponse<string>.Fail("Vui lòng đăng nhập", 401));
+        }
+
+        var (isSuccess, errorMessage) = await _profileService.ChangePasswordAsync(userId, request);
+        
+        if (!isSuccess)
+        {
+            if (errorMessage == "Không tìm thấy người dùng") return NotFound(ApiResponse<string>.Fail(errorMessage, 404));
+            return BadRequest(ApiResponse<string>.Fail(errorMessage, 400));
+        }
+
+        return Ok(ApiResponse<string>.Ok("Đổi mật khẩu thành công"));
     }
 }

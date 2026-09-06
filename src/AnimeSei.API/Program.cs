@@ -1,5 +1,6 @@
 using System.Text;
 using AnimeSei.Application.Common.Interfaces;
+using AnimeSei.Application.Common.Mappings;
 using AnimeSei.Application.Features.Auth.Commands;
 using AnimeSei.Infrastructure.Authentication;
 using AnimeSei.Infrastructure.BackgroundServices;
@@ -36,7 +37,9 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Regis
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
-builder.Services.AddHttpClient<IAniListService, AniListService>(client =>
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddHttpClient<IAnimeService, AnimeService>(client =>
 {
     client.DefaultRequestHeaders.Add("User-Agent", "AnimeSei/1.0");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
@@ -44,6 +47,14 @@ builder.Services.AddHttpClient<IAniListService, AniListService>(client =>
 builder.Services.AddHttpClient<IEpisodeService, EpisodeService>(client =>
 {
     client.DefaultRequestHeaders.Add("User-Agent", "AnimeSei/1.0");
+});
+builder.Services.AddAutoMapper(config =>
+{
+    config.AddProfile<AnimeCacheProfile>();
+    config.AddProfile<AdminMappingProfile>();
+    config.AddProfile<BadgeProfile>();
+    config.AddProfile<BorderProfile>();
+    config.AddProfile<ProfileMappingProfile>();
 });
 builder.Services.AddHostedService<AniListAutoSyncWorker>();
 

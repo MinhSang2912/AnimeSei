@@ -83,6 +83,14 @@ export function App() {
     }
   };
 
+  const handleUpdateUser = (updatedFields: Partial<User>) => {
+    if (user) {
+      const updated = { ...user, ...updatedFields };
+      setUser(updated);
+      localStorage.setItem('user', JSON.stringify(updated));
+    }
+  };
+
   const isAdmin = user && user.role && user.role.toLowerCase() === 'admin';
 
   return (
@@ -167,7 +175,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/anime/:id" element={<AnimeDetailPage user={user} onUpdatePoints={handleUpdatePoints} />} />
             <Route path="/shop" element={<PointShopPage user={user} onUpdatePoints={handleUpdatePoints} />} />
-            <Route path="/profile" element={<ProfilePage user={user} />} />
+            <Route path="/profile" element={<ProfilePage user={user} onUpdateUser={handleUpdateUser} />} />
             <Route
               path="/admin"
               element={

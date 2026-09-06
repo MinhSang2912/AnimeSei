@@ -33,7 +33,9 @@ public class CommentController : ControllerBase
                 User = new
                 {
                     c.User.Username,
-                    c.User.AvatarUrl
+                    c.User.AvatarUrl,
+                    CurrentBadge = c.User.CurrentBadgeId.HasValue ? _context.Badges.FirstOrDefault(b => b.Id == c.User.CurrentBadgeId.Value) : null,
+                    CurrentBorder = c.User.CurrentBorderId.HasValue ? _context.Borders.FirstOrDefault(b => b.Id == c.User.CurrentBorderId.Value) : null
                 }
             })
             .ToListAsync();
@@ -67,6 +69,8 @@ public class CommentController : ControllerBase
         await _context.SaveChangesAsync();
 
         var user = await _context.Users.FindAsync(userId);
+        var currentBadge = user?.CurrentBadgeId.HasValue == true ? await _context.Badges.FindAsync(user.CurrentBadgeId.Value) : null;
+        var currentBorder = user?.CurrentBorderId.HasValue == true ? await _context.Borders.FindAsync(user.CurrentBorderId.Value) : null;
 
         var result = new
         {
@@ -76,7 +80,9 @@ public class CommentController : ControllerBase
             User = new
             {
                 Username = user?.Username ?? "User",
-                AvatarUrl = user?.AvatarUrl
+                AvatarUrl = user?.AvatarUrl,
+                CurrentBadge = currentBadge,
+                CurrentBorder = currentBorder
             }
         };
 

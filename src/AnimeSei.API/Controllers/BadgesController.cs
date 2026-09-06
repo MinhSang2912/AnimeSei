@@ -1,6 +1,8 @@
 using AnimeSei.Application.Common.Interfaces;
 using AnimeSei.Application.Common.Models;
+using AnimeSei.Application.DTOs.Badge;
 using AnimeSei.Domain.Entities;
+using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,17 +11,17 @@ namespace AnimeSei.API.Controllers;
 
 [ApiController]
 [Authorize(Roles = "Admin")]
-[Route("api/admin/badges")]
+[Route("api/[Controller]")]
 public class BadgesController : ControllerBase
 {
     private readonly IAnimeSeiDbContext _context;
+    private readonly IMapper _mapper;
 
-    public BadgesController(IAnimeSeiDbContext context)
+    public BadgesController(IAnimeSeiDbContext context, IMapper mapper)
     {
         _context = context;
+        _mapper = mapper;
     }
-
-    public record BadgeDto(string Name, string IconUrl, string? ImageUrl, int RequiredPoints, string Description);
 
     [HttpGet]
     public async Task<IActionResult> GetBadges()
@@ -31,14 +33,7 @@ public class BadgesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateBadge([FromBody] BadgeDto dto)
     {
-        var badge = new Badge
-        {
-            Name = dto.Name,
-            IconUrl = dto.IconUrl,
-            ImageUrl = dto.ImageUrl,
-            RequiredPoints = dto.RequiredPoints,
-            Description = dto.Description
-        };
+        var badge = _mapper.Map<Badge>(dto);
         _context.Badges.Add(badge);
         await _context.SaveChangesAsync();
         return Ok(ApiResponse<Badge>.Ok(badge, "Tạo huy hiệu mới thành công"));
@@ -50,11 +45,7 @@ public class BadgesController : ControllerBase
         var badge = await _context.Badges.FindAsync(id);
         if (badge == null) return NotFound(ApiResponse<string>.Fail("Không tìm thấy huy hiệu", 404));
 
-        badge.Name = dto.Name;
-        badge.IconUrl = dto.IconUrl;
-        badge.ImageUrl = dto.ImageUrl;
-        badge.RequiredPoints = dto.RequiredPoints;
-        badge.Description = dto.Description;
+        _mapper.Map(dto, badge);
 
         await _context.SaveChangesAsync();
         return Ok(ApiResponse<Badge>.Ok(badge, "Cập nhật huy hiệu thành công"));
