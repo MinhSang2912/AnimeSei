@@ -48,3 +48,14 @@ body {
   margin-left: 2px;
   margin-right: 4px;
 }
+
+/* Hide native password reveal icon in Edge/IE */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+/* Hide native password reveal icon in Chrome/Webkit (if any) */
+input[type="password"]::-webkit-reveal {
+  display: none;
+}

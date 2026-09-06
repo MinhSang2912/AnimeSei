@@ -6,10 +6,35 @@ import { formatAnimeStatus } from '../utils/status';
 import { Star, Loader2, ArrowLeft, MessageSquare, Send, Film, Calendar, Search, User as UserIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { useDominantColor } from '../hooks/useDominantColor';
+
 interface AnimeDetailPageProps {
   user: any;
   onUpdatePoints?: (points: number) => void;
 }
+
+const UserBadge = ({ badge, badgeUrl }: { badge: any, badgeUrl: string }) => {
+  const dominantColor = useDominantColor(badgeUrl);
+  return (
+    <div 
+      className={`mt-2 flex items-center justify-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${dominantColor ? '' : 'bg-amber-400/20 text-amber-300 border border-amber-400/30 shadow-sm'}`}
+      style={dominantColor ? {
+        backgroundColor: dominantColor.replace('rgb', 'rgba').replace(')', ', 0.15)'),
+        borderColor: dominantColor.replace('rgb', 'rgba').replace(')', ', 0.4)'),
+        color: dominantColor,
+        boxShadow: `0 2px 4px -1px ${dominantColor.replace('rgb', 'rgba').replace(')', ', 0.05)')}`,
+        borderWidth: '1px'
+      } : undefined}
+    >
+      {badgeUrl?.startsWith('http') ? (
+        <img src={badgeUrl} className="w-4 h-4 object-contain" alt="badge" />
+      ) : (
+        <span className="leading-none text-xs">{badgeUrl}</span>
+      )}
+      <span className="truncate max-w-[130px]">{badge.name || badge.Name}</span>
+    </div>
+  );
+};
 
 export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
   const { id } = useParams<{ id: string }>();
@@ -428,27 +453,30 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
                         {/* Avatar Column with Hover Card Trigger */}
                         <div className="flex flex-col items-center flex-shrink-0 pt-1 relative group/usercard">
                           
-                          {/* Basic small avatar on the comment */}
-                          <button 
-                            type="button"
-                            onClick={() => setSelectedAvatarUrl(c.user?.avatarUrl || c.user?.AvatarUrl || null)}
-                            className={`relative w-10 h-10 rounded-full border-2 ${cFrameClass} overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer shadow-sm`}
-                          >
-                            {c.user?.avatarUrl || c.user?.AvatarUrl ? (
-                              <img src={c.user.avatarUrl || c.user.AvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                              <UserIcon className="w-5 h-5 text-slate-400" />
+                          {/* Avatar & Border Wrapper */}
+                          <div className="relative w-10 h-10">
+                            {/* Basic small avatar on the comment */}
+                            <button 
+                              type="button"
+                              onClick={() => setSelectedAvatarUrl(c.user?.avatarUrl || c.user?.AvatarUrl || null)}
+                              className={`relative w-full h-full rounded-full border-2 ${cFrameClass} overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer shadow-sm`}
+                            >
+                              {c.user?.avatarUrl || c.user?.AvatarUrl ? (
+                                <img src={c.user.avatarUrl || c.user.AvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <UserIcon className="w-5 h-5 text-slate-400" />
+                              )}
+                            </button>
+                            
+                            {/* Tiny Border Frame on the comment avatar */}
+                            {cIsImageBorder && (
+                              <img 
+                                src={cFrameUrl} 
+                                alt="Border Frame" 
+                                className="absolute -inset-1.5 w-[calc(100%+0.75rem)] h-[calc(100%+0.75rem)] max-w-none pointer-events-none drop-shadow-sm z-10" 
+                              />
                             )}
-                          </button>
-                          
-                          {/* Tiny Border Frame on the comment avatar */}
-                          {cIsImageBorder && (
-                            <img 
-                              src={cFrameUrl} 
-                              alt="Border Frame" 
-                              className="absolute -inset-1.5 w-[calc(100%+0.75rem)] h-[calc(100%+0.75rem)] max-w-none pointer-events-none drop-shadow-sm z-10" 
-                            />
-                          )}
+                          </div>
 
                           {/* Hover Popover Card */}
                           <div className="absolute left-full bottom-0 ml-4 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover/usercard:opacity-100 group-hover/usercard:visible transition-all duration-200 transform translate-x-2 group-hover/usercard:translate-x-0 z-[60] overflow-hidden">
@@ -482,14 +510,7 @@ export const AnimeDetailPage: React.FC<AnimeDetailPageProps> = ({ user }) => {
                                 <span className="font-bold text-white text-base">{c.user?.username || 'Thành viên'}</span>
                                 
                                 {cBadge && (
-                                  <div className="mt-2 flex items-center justify-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                                    {cBadgeUrl?.startsWith('http') ? (
-                                      <img src={cBadgeUrl} className="w-4 h-4 object-contain" alt="badge" />
-                                    ) : (
-                                      <span className="leading-none text-xs">{cBadgeUrl}</span>
-                                    )}
-                                    <span className="truncate max-w-[130px]">{cBadge.name || cBadge.Name}</span>
-                                  </div>
+                                  <UserBadge badge={cBadge} badgeUrl={cBadgeUrl} />
                                 )}
                               </div>
                             </div>

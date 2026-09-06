@@ -43,6 +43,33 @@ public class CommentController : ControllerBase
         return Ok(ApiResponse<object>.Ok(comments, "Lấy danh sách bình luận thành công"));
     }
 
+    [HttpGet("user")]
+    public async Task<IActionResult> GetUserComments()
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(ApiResponse<string>.Fail("Vui lòng đăng nhập", 401));
+        }
+
+        var comments = await _context.Comments
+            .Where(c => c.UserId == userId)
+            .OrderByDescending(c => c.CreatedAt)
+            .Select(c => new
+            {
+                c.Id,
+                c.Content,
+                c.CreatedAt,
+                Anime = _context.AnimeCaches
+                    .Where(a => a.Id == c.AnimeId)
+                    .Select(a => new { a.Id, a.TitleRomaji, a.CoverImage })
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return Ok(ApiResponse<object>.Ok(comments, "Lấy lịch sử bình luận thành công"));
+    }
+
     [HttpPost]
     public async Task<IActionResult> AddComment([FromBody] CreateCommentRequestDto request)
     {

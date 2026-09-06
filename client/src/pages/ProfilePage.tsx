@@ -20,7 +20,9 @@ import {
   Edit2,
   Key,
   Eye,
-  EyeOff
+  EyeOff,
+  MessageSquare,
+  ArrowRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDominantColor } from '../hooks/useDominantColor';
@@ -33,11 +35,12 @@ interface ProfilePageProps {
 export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) => {
   const [profile, setProfile] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [userComments, setUserComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const initialTab = (searchParams.get('tab') as any) || 'info';
-  const [activeTab, setActiveTab] = useState<'info' | 'inventory' | 'security'>(['info', 'inventory', 'security'].includes(initialTab) ? initialTab : 'info');
+  const [activeTab, setActiveTab] = useState<'info' | 'inventory' | 'security' | 'comments'>(['info', 'inventory', 'security', 'comments'].includes(initialTab) ? initialTab : 'info');
   const [uploading, setUploading] = useState(false);
   const [equippingId, setEquippingId] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -56,7 +59,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
 
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get('tab');
-    if (tab && ['info', 'inventory', 'security'].includes(tab)) {
+    if (tab && ['info', 'inventory', 'security', 'comments'].includes(tab)) {
       setActiveTab(tab as any);
     } else {
       setActiveTab('info');
@@ -73,6 +76,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
       const histRes = await api.get<ApiResponse<any[]>>('/watchhistory');
       if (histRes.data.success) {
         setHistory(histRes.data.data || []);
+      }
+
+      const commentsRes = await api.get<ApiResponse<any[]>>('/comment/user');
+      if (commentsRes.data.success) {
+        setUserComments(commentsRes.data.data || []);
       }
     } catch (err) {
       console.error('Lỗi khi tải profile:', err);
@@ -375,6 +383,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
           >
             <Key className="w-4.5 h-4.5" />
             <span>Bảo Mật</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('comments')}
+            className={`pb-4 text-sm font-bold flex items-center space-x-2.5 border-b-2 transition ${
+              activeTab === 'comments' 
+                ? 'border-purple-500 text-purple-400' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MessageSquare className="w-4.5 h-4.5" />
+            <span>Lịch Sử Bình Luận ({userComments.length})</span>
           </button>
         </div>
 
@@ -767,6 +787,153 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, onUpdateUser }) 
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: Lịch Sử Bình Luận */}
+        {activeTab === 'comments' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+              <h3 className="text-base font-bold text-white mb-6 flex items-center space-x-2">
+                <MessageSquare className="w-5 h-5 text-purple-400" />
+                <span>Lịch Sử Bình Luận ({userComments.length})</span>
+              </h3>
+
+              {userComments.length === 0 ? (
+                <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-xl p-8 text-center">
+                  <p className="text-xs text-slate-400 mb-3">Bạn chưa đăng bình luận nào.</p>
+                  <Link to="/" className="inline-flex items-center space-x-1.5 text-xs text-purple-400 hover:text-purple-300 font-bold">
+                    <PlayCircle className="w-3.5 h-3.5" />
+                    <span>Xem anime và bình luận ngay!</span>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userComments.map((c) => {
+                    return (
+                      <div key={c.id} className="bg-slate-950/50 border border-slate-800 p-5 rounded-xl flex flex-col sm:flex-row gap-5 hover:border-purple-500/50 transition">
+                        
+                        {/* Linked Anime Section (Left side big image) */}
+                        {c.anime && (
+                          <div className="shrink-0 w-28">
+                            <Link to={`/anime/${c.anime.id}`} className="block group">
+                              <div className="relative aspect-[3/4] rounded-lg overflow-hidden border border-slate-700 bg-slate-800 mb-2">
+                                <img 
+                                  src={c.anime.coverImage || 'https://via.placeholder.com/150'} 
+                                  alt={c.anime.titleRomaji} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                  <ArrowRight className="w-6 h-6 text-white" />
+                                </div>
+                              </div>
+                              <h4 className="text-xs font-bold text-slate-300 group-hover:text-purple-400 line-clamp-2 text-center transition">{c.anime.titleRomaji}</h4>
+                            </Link>
+                          </div>
+                        )}
+
+                        {/* Comment Content Section (Right side) */}
+                        <div className="flex-1 min-w-0 bg-slate-900 border border-slate-700/50 p-4 rounded-xl flex gap-4">
+                          
+                          {/* Avatar Column with Hover Card Trigger */}
+                          <div className="flex flex-col items-center flex-shrink-0 pt-1 relative group/usercard">
+                            
+                            {/* Avatar & Border Wrapper */}
+                            <div className="relative w-10 h-10">
+                              {/* Basic small avatar on the comment */}
+                              <button 
+                                type="button"
+                                onClick={() => { if (avatarUrl) setIsAvatarModalOpen(true); }}
+                                className={`relative w-full h-full rounded-full border-2 ${frameClass} overflow-hidden bg-slate-800 flex items-center justify-center cursor-pointer shadow-sm`}
+                              >
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                  <UserIcon className="w-5 h-5 text-slate-400" />
+                                )}
+                              </button>
+                            
+                              {/* Tiny Border Frame on the comment avatar */}
+                              {isImageBorder && (
+                                <img 
+                                  src={rawFrameUrl} 
+                                  alt="Border Frame" 
+                                  className="absolute -inset-1.5 w-[calc(100%+0.75rem)] h-[calc(100%+0.75rem)] max-w-none pointer-events-none drop-shadow-sm z-10" 
+                                />
+                              )}
+                            </div>
+
+                            {/* Hover Popover Card */}
+                            <div className="absolute left-full bottom-0 ml-4 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover/usercard:opacity-100 group-hover/usercard:visible transition-all duration-200 transform translate-x-2 group-hover/usercard:translate-x-0 z-[60] overflow-hidden">
+                              <div className="p-5 bg-slate-900/50 flex flex-col items-center justify-center space-y-3 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+                                
+                                {/* Large Avatar in Modal */}
+                                <div className="relative group/avatar">
+                                  <button 
+                                    type="button"
+                                    onClick={() => { if (avatarUrl) setIsAvatarModalOpen(true); }}
+                                    className={`relative z-0 w-16 h-16 rounded-full border-2 ${frameClass} overflow-hidden bg-slate-800 flex items-center justify-center shadow-lg group-hover/avatar:scale-105 transition-transform duration-300 cursor-pointer`}
+                                  >
+                                    {avatarUrl ? (
+                                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <UserIcon className="w-8 h-8 text-slate-400" />
+                                    )}
+                                  </button>
+                                  
+                                  {isImageBorder && (
+                                    <img 
+                                      src={rawFrameUrl} 
+                                      alt="Border Frame" 
+                                      className="absolute -inset-2.5 w-[calc(100%+1.25rem)] h-[calc(100%+1.25rem)] max-w-none pointer-events-none drop-shadow-lg z-10" 
+                                    />
+                                  )}
+                                </div>
+
+                                <div className="text-center relative z-10 flex flex-col items-center">
+                                  <span className="font-bold text-white text-base">{username}</span>
+                                  
+                                  {currentBadge && (
+                                    <div 
+                                      className={`mt-2 flex items-center justify-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${dominantBadgeColor ? '' : 'bg-amber-400/20 text-amber-300 border border-amber-400/30 shadow-sm'}`}
+                                      style={dominantBadgeColor ? {
+                                        backgroundColor: dominantBadgeColor.replace('rgb', 'rgba').replace(')', ', 0.15)'),
+                                        borderColor: dominantBadgeColor.replace('rgb', 'rgba').replace(')', ', 0.4)'),
+                                        color: dominantBadgeColor,
+                                        boxShadow: `0 2px 4px -1px ${dominantBadgeColor.replace('rgb', 'rgba').replace(')', ', 0.05)')}`,
+                                        borderWidth: '1px'
+                                      } : undefined}
+                                    >
+                                      {rawBadgeImageUrl?.startsWith('http') ? (
+                                        <img src={rawBadgeImageUrl} className="w-4 h-4 object-contain" alt="badge" />
+                                      ) : (
+                                        <span className="leading-none text-xs">{rawBadgeImageUrl}</span>
+                                      )}
+                                      <span className="truncate max-w-[130px]">{currentBadge.name || currentBadge.Name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Content Column */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1 pb-2 border-b border-slate-800/60">
+                              <span className="font-bold text-purple-300 text-sm">{username}</span>
+                              <span className="text-[10px] text-slate-500">{new Date(c.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <p className="text-slate-200 text-sm mt-2 leading-relaxed break-words whitespace-pre-wrap">{c.content}</p>
+                          </div>
+
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
