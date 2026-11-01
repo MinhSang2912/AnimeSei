@@ -121,3 +121,5 @@ Xây dựng hệ thống website xem phim anime sử dụng dữ liệu từ Ani
 - **Frontend Container:** Viết `Dockerfile` đóng gói ứng dụng ReactJS (sử dụng Nginx Alpine container để phục vụ static file đã build).
 - **Docker Compose:** Sử dụng file `docker-compose.yml` để orchestrate và chạy đồng thời các dịch vụ (Backend API, Frontend App) giúp nhất quán môi trường Development và Production.
 
+
+đã xóa supabase
